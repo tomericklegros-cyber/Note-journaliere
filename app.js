@@ -952,7 +952,7 @@
 
   function buildRadarChart() {
     const data = computeAllTimePointsByExercise();
-    const targets = ['radarWrap', 'homeRadarWrap']
+    const targets = ['radarWrap', 'homeRadarWrap', 'homeRadarWrapMobile']
       .map(id => document.getElementById(id))
       .filter(Boolean);
 

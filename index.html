@@ -452,6 +452,20 @@
             <div class="tip-label" id="tipLabel">Conseil</div>
             <div class="tip-text" id="tipText">Chargement…</div>
           </div>
+          <div class="dash-badges-inline">
+            <div class="card-head" style="margin-top:12px;">
+              <h3 style="margin:0;font-size:14px;">Récompenses</h3>
+              <button type="button" class="edit-btn" id="homeBadgesMoreBtn">Voir tout</button>
+            </div>
+            <div id="homeBadgesWrap" class="home-badges-grid compact"></div>
+          </div>
+        </div>
+
+        <div class="card dash-radar desktop-only-radar">
+          <h2>Équilibre</h2>
+          <div id="homeRadarWrap" class="home-radar-wrap">
+            <div class="chart-empty">Ajoute des exercices pour le radar.</div>
+          </div>
         </div>
       </div>
 
@@ -464,19 +478,11 @@
         <div class="flash" id="flashMsg"></div>
       </div>
 
-      <div class="today-bottom">
-        <div class="card dash-radar">
-          <h2>Équilibre des performances</h2>
-          <div id="homeRadarWrap" class="home-radar-wrap">
-            <div class="chart-empty">Ajoute des exercices pour voir le radar.</div>
-          </div>
-        </div>
-        <div class="card dash-badges">
-          <div class="card-head">
-            <h2>Vitrine de récompenses</h2>
-            <button type="button" class="edit-btn" id="homeBadgesMoreBtn">Voir tout</button>
-          </div>
-          <div id="homeBadgesWrap" class="home-badges-grid"></div>
+      <!-- Radar sous les exercices sur mobile uniquement (copie visuelle via CSS order) -->
+      <div class="card dash-radar mobile-only-radar">
+        <h2>Équilibre des performances</h2>
+        <div id="homeRadarWrapMobile" class="home-radar-wrap">
+          <div class="chart-empty">Ajoute des exercices pour le radar.</div>
         </div>
       </div>
     </div>
