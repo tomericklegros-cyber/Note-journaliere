@@ -794,28 +794,31 @@
     const wins = stats.wins || 0;
     const played = stats.played || 0;
     const multi = stats.multiWins || 0;
+    const lvl = levelFromXp(state.xp || 0);
 
     return [
-      { id: 'premier-jour',   icon: '🥉', img: 'badges/premier-jour.png',   label: 'Premier jour',                liveDone: daysCount >= 1,     current: daysCount, target: 1,     unit: 'jour', reward: { xp: 20, avatar: 'flame' } },
-      { id: 'une-semaine',    icon: '📅', img: 'badges/une-semaine.png',    label: 'Une semaine d\'affilée',       liveDone: streak >= 7,        current: streak, target: 7,     unit: 'jours', reward: { xp: 40, font: 'mono' } },
-      { id: 'un-mois',        icon: '🗓️', img: 'badges/un-mois.png',        label: 'Un mois d\'affilée',           liveDone: streak >= 30,       current: streak, target: 30,    unit: 'jours', reward: { xp: 100, avatar: 'bolt' } },
-      { id: 'premier-record', icon: '🏆', img: 'badges/premier-record.png', label: 'Premier record battu',        liveDone: !!state.records.bestScore, current: null, target: null, unit: '', reward: { xp: 30, avatar: 'rocket' } },
+      { id: 'premier-jour',   icon: '🥉', img: 'badges/premier-jour.png',   label: 'Premier jour',                liveDone: daysCount >= 1,     current: daysCount, target: 1,     unit: 'jour', reward: { xp: 25, avatar: 'flame' } },
+      { id: 'une-semaine',    icon: '📅', img: 'badges/une-semaine.png',    label: 'Une semaine d\'affilée',       liveDone: streak >= 7,        current: streak, target: 7,     unit: 'jours', reward: { xp: 40, avatar: 'bolt', font: 'mono' } },
+      { id: 'un-mois',        icon: '🗓️', img: 'badges/un-mois.png',        label: 'Un mois d\'affilée',           liveDone: streak >= 30,       current: streak, target: 30,    unit: 'jours', reward: { xp: 100, avatar: 'rocket' } },
+      { id: 'premier-record', icon: '🏆', img: 'badges/premier-record.png', label: 'Premier record battu',        liveDone: !!state.records.bestScore, current: null, target: null, unit: '', reward: { xp: 35, avatar: 'dragon' } },
       { id: 'perf-extreme',   icon: '👑', img: 'badges/perf-extreme.png',   label: 'Performance extrême atteint', liveDone: reachedPerfExtreme, current: bestScoreEver, target: perfExtremeMin, unit: 'pts', reward: { xp: 80, avatar: 'crown' } },
-      { id: 'hacker',         icon: '🖥️', img: 'badges/hacker.png',         label: 'Rang Hacker atteint',         liveDone: reachedHacker,      current: bestScoreEver, target: hackerMin, unit: 'pts', reward: { xp: 120, font: 'neon', avatar: 'skull' } },
-      { id: 'mille-pts',      icon: '🔥', img: 'badges/mille-pts.png',      label: '1 000 pts cumulés',           liveDone: allTime >= 1000,    current: allTime, target: 1000,  unit: 'pts', reward: { xp: 25 } },
+      { id: 'hacker',         icon: '🖥️', img: 'badges/hacker.png',         label: 'Rang Hacker atteint',         liveDone: reachedHacker,      current: bestScoreEver, target: hackerMin, unit: 'pts', reward: { xp: 120, avatar: 'skull', font: 'neon' } },
+      { id: 'mille-pts',      icon: '🔥', img: 'badges/mille-pts.png',      label: '1 000 pts cumulés',           liveDone: allTime >= 1000,    current: allTime, target: 1000,  unit: 'pts', reward: { xp: 30, avatar: 'flame' } },
       { id: 'cinq-mille-pts', icon: '⭐', img: 'badges/cinq-mille-pts.png', label: '5 000 pts cumulés',           liveDone: allTime >= 5000,    current: allTime, target: 5000,  unit: 'pts', reward: { xp: 60, avatar: 'diamond' } },
-      { id: 'dix-mille-pts',  icon: '🏔️', img: 'badges/dix-mille-pts.png',  label: '10 000 pts cumulés',          liveDone: allTime >= 10000,   current: allTime, target: 10000, unit: 'pts', reward: { xp: 150, font: 'display' } },
-      // Badges défis évolutifs (plusieurs paliers)
+      { id: 'dix-mille-pts',  icon: '🏔️', img: 'badges/dix-mille-pts.png',  label: '10 000 pts cumulés',          liveDone: allTime >= 10000,   current: allTime, target: 10000, unit: 'pts', reward: { xp: 150, avatar: 'phoenix', font: 'display' } },
       { id: 'premier-sang',   icon: '⚔️', img: null, label: 'Premier sang I',  liveDone: wins >= 1,  current: wins, target: 1,  unit: 'victoire', tier: 1, family: 'sang', reward: { xp: 30, avatar: 'dragon' } },
       { id: 'premier-sang-2', icon: '⚔️', img: null, label: 'Premier sang II', liveDone: wins >= 5,  current: wins, target: 5,  unit: 'victoires', tier: 2, family: 'sang', reward: { xp: 50, font: 'mono' } },
       { id: 'premier-sang-3', icon: '⚔️', img: null, label: 'Premier sang III',liveDone: wins >= 15, current: wins, target: 15, unit: 'victoires', tier: 3, family: 'sang', reward: { xp: 100, avatar: 'phoenix' } },
-      { id: 'duelliste',      icon: '🗡️', img: null, label: 'Duelliste I',     liveDone: played >= 5,  current: played, target: 5,  unit: 'défis', tier: 1, family: 'duel', reward: { xp: 25 } },
-      { id: 'duelliste-2',    icon: '🗡️', img: null, label: 'Duelliste II',    liveDone: played >= 15, current: played, target: 15, unit: 'défis', tier: 2, family: 'duel', reward: { xp: 50, avatar: 'bolt' } },
+      { id: 'duelliste',      icon: '🗡️', img: null, label: 'Duelliste I',     liveDone: played >= 5,  current: played, target: 5,  unit: 'défis', tier: 1, family: 'duel', reward: { xp: 25, avatar: 'bolt' } },
+      { id: 'duelliste-2',    icon: '🗡️', img: null, label: 'Duelliste II',    liveDone: played >= 15, current: played, target: 15, unit: 'défis', tier: 2, family: 'duel', reward: { xp: 50, avatar: 'skull' } },
       { id: 'duelliste-3',    icon: '🗡️', img: null, label: 'Duelliste III',   liveDone: played >= 40, current: played, target: 40, unit: 'défis', tier: 3, family: 'duel', reward: { xp: 90, font: 'display' } },
       { id: 'meute',          icon: '👥', img: null, label: 'Esprit de meute I',  liveDone: multi >= 1, current: multi, target: 1, unit: 'multi', tier: 1, family: 'meute', reward: { xp: 40, avatar: 'wolf' } },
       { id: 'meute-2',        icon: '👥', img: null, label: 'Esprit de meute II', liveDone: multi >= 3, current: multi, target: 3, unit: 'multi', tier: 2, family: 'meute', reward: { xp: 70, font: 'neon' } },
       { id: 'meute-3',        icon: '👥', img: null, label: 'Esprit de meute III',liveDone: multi >= 10,current: multi, target: 10,unit: 'multi', tier: 3, family: 'meute', reward: { xp: 150, avatar: 'phoenix' } },
-      { id: 'mythique', icon: '🌌', img: null, label: 'Rang Mythique — niveau 100', liveDone: levelFromXp(state.xp || 0) >= 100, current: levelFromXp(state.xp || 0), target: 100, unit: 'niv', reward: { xp: 300, avatar: 'mythic', font: 'neon' } },
+      { id: 'niveau-10',      icon: '🔟', img: null, label: 'Niveau 10', liveDone: lvl >= 10, current: lvl, target: 10, unit: 'niv', reward: { xp: 20, avatar: 'rocket' } },
+      { id: 'niveau-25',      icon: '🌟', img: null, label: 'Niveau 25', liveDone: lvl >= 25, current: lvl, target: 25, unit: 'niv', reward: { xp: 40, avatar: 'diamond', font: 'mono' } },
+      { id: 'niveau-50',      icon: '💫', img: null, label: 'Niveau 50', liveDone: lvl >= 50, current: lvl, target: 50, unit: 'niv', reward: { xp: 80, avatar: 'phoenix', font: 'display' } },
+      { id: 'mythique',       icon: '🌌', img: null, label: 'Rang Mythique — niveau 100', liveDone: lvl >= 100, current: lvl, target: 100, unit: 'niv', reward: { xp: 300, avatar: 'mythic', font: 'neon' } },
     ];
   }
 
@@ -874,6 +877,18 @@
     try { if (typeof renderProfile === 'function') renderProfile(); } catch (e) {}
   }
 
+
+  function claimAllUnlockedBadgeRewards() {
+    const list = getBadges();
+    const seen = Array.isArray(state.seenBadges) ? state.seenBadges : [];
+    list.forEach(b => {
+      if (b.liveDone || seen.includes(b.id)) {
+        // si badge obtenu mais récompense jamais prise
+        grantBadgeReward(b);
+      }
+    });
+  }
+
   function applyCosmeticTheme() {
     const font = FONT_CATALOG[state.selectedFont] || FONT_CATALOG.default;
     document.documentElement.style.setProperty('--user-font', font.css);
@@ -917,7 +932,10 @@
       }
     }
 
-    const badges = rawBadges.map(b => ({ ...b, done: state.seenBadges.includes(b.id) }));
+    // Rattrapage : badges déjà obtenus sans récompense (tests / anciens saves)
+    claimAllUnlockedBadgeRewards();
+
+    const badges = rawBadges.map(b => ({ ...b, done: (state.seenBadges || []).includes(b.id) || !!b.liveDone }));
 
     checkSecretBadge(badges);
 
@@ -1559,12 +1577,14 @@
     const fontBox = document.getElementById('profileFontPicker');
     if (avBox) {
       const unlocked = state.unlockedAvatars || ['default'];
-      avBox.innerHTML = unlocked.map(id => {
-        const a = AVATAR_CATALOG[id] || { emoji: '?', label: id };
+      avBox.innerHTML = Object.keys(AVATAR_CATALOG).map(id => {
+        const a = AVATAR_CATALOG[id];
+        const isOn = unlocked.includes(id);
         const sel = state.selectedAvatar === id ? 'selected' : '';
-        return `<button type="button" class="cosmetic-chip ${sel}" data-avatar="${id}" title="${a.label}">${a.emoji}</button>`;
+        const lock = isOn ? '' : ' locked';
+        return `<button type="button" class="cosmetic-chip ${sel}${lock}" data-avatar="${id}" title="${a.label}${isOn ? '' : ' (verrouillé)'}" ${isOn ? '' : 'disabled'}>${a.emoji}</button>`;
       }).join('');
-      avBox.querySelectorAll('[data-avatar]').forEach(btn => {
+      avBox.querySelectorAll('[data-avatar]:not([disabled])').forEach(btn => {
         btn.addEventListener('click', () => {
           state.selectedAvatar = btn.getAttribute('data-avatar');
           saveState();

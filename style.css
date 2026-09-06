@@ -2860,3 +2860,9 @@ body:not(.light-theme) .side-nav {
   vertical-align: middle;
 }
 .tab-dot.on { display: inline-block; }
+
+.cosmetic-chip.locked {
+  opacity: 0.28;
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
