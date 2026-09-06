@@ -1086,6 +1086,7 @@
     buildBadges();
     buildChart();
     buildRadarChart();
+    if (typeof renderHomeMiniCal === "function") renderHomeMiniCal();
 
     document.getElementById('dateBadge').textContent = new Date().toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' });
 
@@ -1168,6 +1169,53 @@
       btn.addEventListener('click', () => selectCalDay(key));
       grid.appendChild(btn);
     }
+    renderHomeMiniCal();
+  }
+
+
+  function renderHomeMiniCal() {
+    const targets = [
+      { grid: 'homeCalGrid', label: 'homeCalLabel' },
+      { grid: 'homeCalGridMobile', label: 'homeCalLabelMobile' }
+    ];
+    const year = calView.getFullYear();
+    const month = calView.getMonth();
+    const first = new Date(year, month, 1);
+    const startPad = (first.getDay() + 6) % 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayK = todayKey();
+    const monthLabel = calView.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+
+    targets.forEach(t => {
+      const grid = document.getElementById(t.grid);
+      const label = document.getElementById(t.label);
+      if (!grid) return;
+      if (label) label.textContent = monthLabel;
+      grid.innerHTML = '';
+      for (let i = 0; i < startPad; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'mini-cal-day empty';
+        grid.appendChild(empty);
+      }
+      for (let d = 1; d <= daysInMonth; d++) {
+        const key = year + '-' + (month + 1) + '-' + d;
+        const sc = scoreForDay(key);
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'mini-cal-day';
+        if (key === todayK) cell.classList.add('today');
+        if (sc !== null && sc > 0) cell.classList.add('has-score');
+        if (state.plannedSessions && state.plannedSessions[key]) cell.classList.add('has-plan');
+        cell.textContent = String(d);
+        cell.addEventListener('click', () => {
+          calSelectedKey = key;
+          showSection('section-calendar');
+          selectCalDay(key);
+          closeNav();
+        });
+        grid.appendChild(cell);
+      }
+    });
   }
 
   function exercisesForDay(dayKey) {
@@ -2264,6 +2312,14 @@
   document.getElementById('calSaveNoteBtn')?.addEventListener('click', saveCalNote);
   document.getElementById('calSavePlanBtn')?.addEventListener('click', saveCalPlan);
   document.getElementById('calSaveChallengePlanBtn')?.addEventListener('click', saveCalChallengePlan);
+  document.getElementById('homeCalOpenBtn')?.addEventListener('click', () => {
+    showSection('section-calendar');
+    closeNav();
+  });
+  document.getElementById('homeCalOpenBtnMobile')?.addEventListener('click', () => {
+    showSection('section-calendar');
+    closeNav();
+  });
   document.getElementById('dateBadge')?.addEventListener('click', () => {
     showSection('section-calendar');
     closeNav();

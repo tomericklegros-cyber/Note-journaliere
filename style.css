@@ -2655,3 +2655,75 @@ body:not(.light-theme) .side-nav {
   }
   .score-readout { font-size: 42px !important; }
 }
+
+/* ---- Colonne droite : radar + mini calendrier ---- */
+.dash-right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.dash-mini-cal .card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.mini-cal-label {
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-transform: capitalize;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.mini-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 4px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+.mini-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+.mini-cal-day {
+  aspect-ratio: 1;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--stone-dark);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.mini-cal-day.empty {
+  background: transparent;
+  cursor: default;
+}
+.mini-cal-day.today {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 1px var(--purple);
+}
+.mini-cal-day.has-score {
+  background: rgba(var(--accent-rgb), 0.18);
+}
+.mini-cal-day.has-plan {
+  box-shadow: inset 0 -2px 0 #F59E0B;
+}
+.mini-cal-day:hover:not(.empty) {
+  border-color: var(--purple);
+}
+
+.desktop-only-radar { display: flex !important; flex-direction: column; }
+.mobile-only-radar { display: none !important; }
+
+@media (max-width: 980px) {
+  .desktop-only-radar { display: none !important; }
+  .mobile-only-radar { display: block !important; margin-top: 14px !important; }
+}

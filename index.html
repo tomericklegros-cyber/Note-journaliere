@@ -461,10 +461,21 @@
           </div>
         </div>
 
-        <div class="card dash-radar desktop-only-radar">
-          <h2>Équilibre</h2>
-          <div id="homeRadarWrap" class="home-radar-wrap">
-            <div class="chart-empty">Ajoute des exercices pour le radar.</div>
+        <div class="dash-right-col desktop-only-radar">
+          <div class="card dash-radar">
+            <h2>Équilibre</h2>
+            <div id="homeRadarWrap" class="home-radar-wrap">
+              <div class="chart-empty">Ajoute des exercices pour le radar.</div>
+            </div>
+          </div>
+          <div class="card dash-mini-cal">
+            <div class="card-head">
+              <h2 style="margin:0;font-size:15px;">Calendrier</h2>
+              <button type="button" class="edit-btn" id="homeCalOpenBtn">Ouvrir</button>
+            </div>
+            <div class="mini-cal-label" id="homeCalLabel">—</div>
+            <div class="mini-cal-weekdays"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+            <div class="mini-cal-grid" id="homeCalGrid"></div>
           </div>
         </div>
       </div>
@@ -478,11 +489,22 @@
         <div class="flash" id="flashMsg"></div>
       </div>
 
-      <!-- Radar sous les exercices sur mobile uniquement (copie visuelle via CSS order) -->
-      <div class="card dash-radar mobile-only-radar">
-        <h2>Équilibre des performances</h2>
-        <div id="homeRadarWrapMobile" class="home-radar-wrap">
-          <div class="chart-empty">Ajoute des exercices pour le radar.</div>
+      <!-- Radar + mini cal mobile -->
+      <div class="mobile-only-radar">
+        <div class="card dash-radar">
+          <h2>Équilibre des performances</h2>
+          <div id="homeRadarWrapMobile" class="home-radar-wrap">
+            <div class="chart-empty">Ajoute des exercices pour le radar.</div>
+          </div>
+        </div>
+        <div class="card dash-mini-cal" style="margin-top:14px;">
+          <div class="card-head">
+            <h2 style="margin:0;font-size:15px;">Calendrier</h2>
+            <button type="button" class="edit-btn" id="homeCalOpenBtnMobile">Ouvrir</button>
+          </div>
+          <div class="mini-cal-label" id="homeCalLabelMobile">—</div>
+          <div class="mini-cal-weekdays"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+          <div class="mini-cal-grid" id="homeCalGridMobile"></div>
         </div>
       </div>
     </div>
