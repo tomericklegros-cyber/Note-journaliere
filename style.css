@@ -2843,7 +2843,13 @@ body:not(.light-theme) .side-nav {
   box-shadow: 0 0 0 2px var(--stone);
 }
 .social-badge.show { display: inline-flex; }
-.social-toggle { position: relative; }
+.social-toggle {
+  position: fixed !important;
+  top: 14px !important;
+  right: 14px !important;
+  left: auto !important;
+  z-index: 120 !important;
+}
 .tab-dot {
   display: none;
   width: 7px;
