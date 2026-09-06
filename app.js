@@ -3011,17 +3011,21 @@
       return;
     }
     let n = 0;
+    const uid = currentUser.uid;
     Object.values(cachedChallenges || {}).forEach(ch => {
       if (!ch) return;
-      const uid = currentUser.uid;
-      const isPart = ch.fromUid === uid || ch.toUid === uid ||
-        (Array.isArray(ch.participants) && ch.participants.includes(uid));
-      if (!isPart) return;
-      // demande à accepter
-      if (ch.status === 'pending' && ch.toUid === uid) n++;
-      // actif et mon score manquant
+      // Uniquement les vraies actions en attente pour MOI
+      // 1) Défi reçu en attente d'acceptation
+      if (ch.status === 'pending' && ch.toUid === uid) {
+        n++;
+        return;
+      }
+      // 2) Défi actif où je dois encore envoyer mon score (pas le chrono)
       if (ch.status === 'active' && (ch.type === 'score_day' || ch.type === 'exercise' || ch.type === 'goal')) {
-        if (isMultiChallenge(ch)) {
+        const isPart = ch.fromUid === uid || ch.toUid === uid ||
+          (Array.isArray(ch.participants) && ch.participants.includes(uid));
+        if (!isPart) return;
+        if (typeof isMultiChallenge === 'function' && isMultiChallenge(ch)) {
           const sc = ch.scores && ch.scores[uid];
           if (typeof sc !== 'number') n++;
         } else {
@@ -3029,7 +3033,8 @@
           if (typeof mine !== 'number') n++;
         }
       }
-      if (ch.status === 'active' && ch.type === 'chrono') n++;
+      // chrono : pastille seulement si l'autre a joué / défi reçu et chrono pas fini — évite le spam
+      // (on ne compte plus tous les chronos actifs)
     });
     notifState.challenges = n;
     refreshNotifBadge();
@@ -3038,32 +3043,71 @@
   function startConversationNotifs() {
     if (!currentUser || !db) return;
     if (convNotifUnsub) { convNotifUnsub(); convNotifUnsub = null; }
+    let convBootstrapped = false;
     convNotifUnsub = db.collection('conversations')
       .where('participants', 'array-contains', currentUser.uid)
       .onSnapshot(snap => {
         const readMap = getChatReadMap();
+        // Premier chargement : on marque les conversations existantes comme déjà vues
+        // pour éviter une pastille rouge "pour rien" au démarrage
+        if (!convBootstrapped) {
+          let changed = false;
+          snap.forEach(doc => {
+            const d = doc.data() || {};
+            const updated = d.updatedAt && d.updatedAt.toMillis ? d.updatedAt.toMillis() : Date.now();
+            if (!readMap[doc.id] || readMap[doc.id] < updated) {
+              // seulement si c'est moi le lastFrom, ou pas de message utile
+              if (!d.lastFrom || d.lastFrom === currentUser.uid || !(d.lastMessage || '').trim()) {
+                readMap[doc.id] = updated;
+                changed = true;
+              } else if (!readMap[doc.id]) {
+                // ancien message non lu réel : on laisse, mais pas de toast au boot
+                // ne compte que s'il y a vraiment un lastMessage
+              }
+            }
+          });
+          // Pour les vieux messages non lus trop anciens (> 7 jours), on les ignore
+          const week = Date.now() - 7 * 24 * 3600 * 1000;
+          snap.forEach(doc => {
+            const d = doc.data() || {};
+            const updated = d.updatedAt && d.updatedAt.toMillis ? d.updatedAt.toMillis() : 0;
+            if (updated && updated < week) {
+              readMap[doc.id] = Math.max(readMap[doc.id] || 0, updated);
+              changed = true;
+            }
+          });
+          if (changed) {
+            try { localStorage.setItem('note_chat_read_v1', JSON.stringify(readMap)); } catch (e) {}
+          }
+          convBootstrapped = true;
+        }
+
         let unread = 0;
         snap.docChanges().forEach(change => {
+          if (!convBootstrapped && change.type === 'added') return;
           const d = change.doc.data() || {};
           const id = change.doc.id;
-          if (d.lastFrom && d.lastFrom !== currentUser.uid) {
+          if (change.type === 'modified' && d.lastFrom && d.lastFrom !== currentUser.uid) {
             const updated = d.updatedAt && d.updatedAt.toMillis ? d.updatedAt.toMillis() : 0;
             const lastRead = readMap[id] || 0;
-            if (updated > lastRead) {
-              if (change.type === 'modified' || change.type === 'added') {
-                // toast seulement sur modif récente
-                if (change.type === 'modified') {
-                  showAppToast('Nouveau message', (d.lastMessage || 'Message reçu').slice(0, 80));
-                }
+            const msg = (d.lastMessage || '').trim();
+            if (msg && updated > lastRead) {
+              // toast seulement si le message est récent (< 3 min)
+              if (updated > Date.now() - 3 * 60 * 1000) {
+                showAppToast('Nouveau message', msg.slice(0, 80));
               }
             }
           }
         });
         snap.forEach(doc => {
           const d = doc.data() || {};
+          const msg = (d.lastMessage || '').trim();
+          if (!msg) return;
           if (d.lastFrom && d.lastFrom !== currentUser.uid) {
             const updated = d.updatedAt && d.updatedAt.toMillis ? d.updatedAt.toMillis() : 0;
             const lastRead = readMap[doc.id] || 0;
+            // ignore très vieux
+            if (updated && updated < Date.now() - 7 * 24 * 3600 * 1000) return;
             if (updated > lastRead) unread++;
           }
         });
@@ -3245,8 +3289,10 @@
       .onSnapshot(snap => {
         const list = document.getElementById('friendRequestsList');
         const prev = notifState.friends || 0;
+        const firstFriendsSnap = notifState._friendsBoot === undefined;
         notifState.friends = snap.size;
-        if (snap.size > prev) {
+        notifState._friendsBoot = true;
+        if (!firstFriendsSnap && snap.size > prev) {
           showAppToast('Demande d\'ami', 'Tu as une nouvelle demande');
         }
         refreshNotifBadge();
@@ -3802,7 +3848,7 @@
         }
         const ch = { id: change.doc.id, ...change.doc.data() };
         const uid = currentUser && currentUser.uid;
-        if (challengesReady && (change.type === 'added' || change.type === 'modified') && uid) {
+        if (challengesReady && change.type === 'added' && uid) {
           if (ch.status === 'pending' && ch.toUid === uid && !knownChallengeIds.has(ch.id)) {
             showAppToast('Nouveau défi', (ch.fromPseudo ? '@' + ch.fromPseudo : 'Un ami') + ' t\'a défié');
           }
