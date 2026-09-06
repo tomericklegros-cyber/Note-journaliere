@@ -192,25 +192,24 @@
     <!-- DÉFIS -->
     <div class="social-section" id="social-defis">
       <div class="social-hint">
-        Défie un ami (score, exercice, objectif ou chrono).<br>
-        <strong>Score / exercice / objectif :</strong> les deux appuient sur « Envoyer mon score » pour comparer.<br>
-        <strong>Chrono :</strong> les deux « Je suis prêt », puis chacun STOP de son côté.
+        Défie 1 à 3 amis (2 à 4 joueurs au total).<br>
+        <strong>Score / exercice / objectif :</strong> chacun envoie son score — classement automatique.<br>
+        <strong>Chrono :</strong> uniquement en duel (1 contre 1).
       </div>
 
       <div class="challenge-create" id="challengeCreateBox">
         <div class="settings-field" style="margin-bottom:8px;">
-          <label>Ami</label>
-          <select id="challengeFriendSelect" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--stone-dark);color:var(--ink);">
-            <option value="">Choisir un ami…</option>
-          </select>
+          <label>Adversaires (1 à 3)</label>
+          <div id="challengeFriendsPick"><div class="social-empty">Chargement…</div></div>
+          <select id="challengeFriendSelect" style="display:none;"></select>
         </div>
         <div class="settings-field" style="margin-bottom:8px;">
           <label>Type de défi</label>
           <select id="challengeTypeSelect" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--stone-dark);color:var(--ink);">
-            <option value="score_day">Score du jour — qui a le plus de points</option>
+            <option value="score_day">Score du jour — classement points</option>
             <option value="exercise">Exercice — qui en fait le plus</option>
             <option value="goal">Objectif — atteindre X points</option>
-            <option value="chrono">Chrono duel — celui qui tient le plus longtemps</option>
+            <option value="chrono">Chrono duel — 1 contre 1 seulement</option>
           </select>
         </div>
         <div class="settings-field" id="challengeExerciseField" style="margin-bottom:8px;display:none;">
@@ -235,8 +234,6 @@
         <button type="button" class="auth-btn primary" id="createGroupBtn" style="width:100%;margin-bottom:12px;">+ Créer un groupe</button>
         <div class="modal-section-title">Conversations</div>
         <div id="messagesList"><div class="social-empty">Aucune conversation</div></div>
-        <div class="modal-section-title" style="margin-top:14px;">Amis (nouveau message)</div>
-        <div id="messagesFriendsList"><div class="social-empty">Aucun ami</div></div>
       </div>
       <div id="chatThreadView" style="display:none; flex-direction:column; height:100%; min-height:360px;">
         <div class="chat-thread-head">
@@ -564,12 +561,16 @@
           <div class="profile-xp-bar"><div class="profile-xp-fill" id="profileXpFill"></div></div>
           <div class="profile-xp-hint" id="profileXpHint">Gagne de l’XP en terminant des défis</div>
         </div>
+        <div class="profile-rank-line" id="profileRankLine">Rang : —</div>
         <div class="profile-stats">
           <div class="profile-stat"><div class="ps-val" id="statChallengesWon">0</div><div class="ps-label">Défis gagnés</div></div>
           <div class="profile-stat"><div class="ps-val" id="statChallengesPlayed">0</div><div class="ps-label">Défis joués</div></div>
+          <div class="profile-stat"><div class="ps-val" id="statMultiWins">0</div><div class="ps-label">Multi gagnés</div></div>
           <div class="profile-stat"><div class="ps-val" id="statFriends">0</div><div class="ps-label">Amis</div></div>
           <div class="profile-stat"><div class="ps-val" id="statDays">0</div><div class="ps-label">Jours actifs</div></div>
+          <div class="profile-stat"><div class="ps-val" id="statBadges">0/0</div><div class="ps-label">Badges</div></div>
         </div>
+        <div class="profile-badges-preview" id="profileBadgesPreview"></div>
         <div class="profile-howto">
           <strong>Comment gagner de l’XP ?</strong>
           <ul>
@@ -595,9 +596,21 @@
           <div class="cal-detail-title" id="calDetailTitle">Sélectionne un jour</div>
           <div class="cal-detail-score" id="calDetailScore"></div>
           <div class="cal-detail-exos" id="calDetailExos"></div>
+          <div id="calPlannedBox" class="cal-planned-box"></div>
+          <div id="calChallengeResults" class="cal-challenge-results"></div>
           <label class="cal-note-label">Note de séance</label>
           <textarea id="calNoteInput" rows="3" placeholder="Comment s’est passée la séance ?" maxlength="500"></textarea>
           <button type="button" class="auth-btn primary" id="calSaveNoteBtn" style="margin-top:10px;">Enregistrer la note</button>
+
+          <div class="modal-section-title" style="margin-top:16px;">Programmer une mini-séance</div>
+          <input type="text" id="calPlanTitle" maxlength="60" placeholder="ex: Full body léger" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--stone-dark);color:var(--ink);margin-bottom:8px;">
+          <textarea id="calPlanDetails" rows="2" maxlength="300" placeholder="Exercices prévus (pompes, gainage…)" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--stone-dark);color:var(--ink);"></textarea>
+          <button type="button" class="ghost-btn" id="calSavePlanBtn" style="width:100%;margin-top:8px;">Enregistrer la mini-séance</button>
+
+          <div class="modal-section-title" style="margin-top:16px;">Programmer un défi (rappel)</div>
+          <input type="text" id="calPlanChallenge" maxlength="80" placeholder="ex: Défi score vs @luna" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--stone-dark);color:var(--ink);">
+          <button type="button" class="ghost-btn" id="calSaveChallengePlanBtn" style="width:100%;margin-top:8px;">Ajouter le défi au jour</button>
+
           <div class="flash" id="calFlash" style="min-height:16px;margin-top:8px;"></div>
         </div>
       </div>
@@ -663,6 +676,23 @@
       <button type="button" class="ghost-btn" id="adminBoostScoreBtn">Ajouter pts</button>
     </div>
     <button type="button" class="ghost-btn" id="adminZeroTodayBtn" style="width:100%;margin-bottom:12px;">Remettre le score du jour à 0</button>
+
+    <div class="modal-section-title">Joueur distant (pseudo)</div>
+    <div class="theme-switch-row" style="margin-bottom:8px;gap:8px;flex-wrap:wrap;">
+      <input type="text" id="adminTargetPseudo" placeholder="pseudo du joueur" maxlength="20" style="flex:1;min-width:120px;background:var(--stone-dark);border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--ink);">
+      <button type="button" class="ghost-btn" id="adminLoadPlayerBtn">Charger</button>
+    </div>
+    <div id="adminPlayerInfo" style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">Aucun joueur chargé</div>
+    <div class="theme-switch-row" style="margin-bottom:8px;gap:8px;">
+      <input type="number" id="adminRemoteXp" min="0" step="10" placeholder="XP" style="flex:1;background:var(--stone-dark);border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--ink);">
+      <button type="button" class="ghost-btn" id="adminRemoteSetXpBtn">XP joueur</button>
+    </div>
+    <div class="theme-switch-row" style="margin-bottom:8px;gap:8px;">
+      <input type="number" id="adminRemoteWins" min="0" step="1" placeholder="Défis gagnés" style="flex:1;background:var(--stone-dark);border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--ink);">
+      <input type="number" id="adminRemotePlayed" min="0" step="1" placeholder="Défis joués" style="flex:1;background:var(--stone-dark);border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--ink);">
+    </div>
+    <button type="button" class="ghost-btn" id="adminRemoteStatsBtn" style="width:100%;margin-bottom:12px;">Appliquer stats défis</button>
+    <button type="button" class="ghost-btn" id="adminRemoteGrantAllBadgesBtn" style="width:100%;margin-bottom:12px;">Débloquer tous badges (joueur)</button>
 
     <div class="modal-section-title">Cloud / profil public</div>
     <button type="button" class="ghost-btn" id="adminForceSyncBtn" style="width:100%;margin-bottom:8px;">Forcer sync cloud</button>

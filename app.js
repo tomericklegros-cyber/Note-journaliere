@@ -161,8 +161,7 @@
       const score = Math.round(computeScore(state));
       const { current } = getRank(score);
       const level = typeof levelFromXp === 'function' ? levelFromXp(state.xp || 0) : 1;
-      const badges = typeof getBadges === 'function' ? getBadges() : [];
-      const badgesUnlocked = badges.filter(b => b.done).length;
+      const badgeCount = countBadgesProgress();
       await db.collection('publicProfiles').doc(currentUser.uid).set({
         uid: currentUser.uid,
         pseudo: state.pseudo || '',
@@ -172,8 +171,10 @@
         todayScore: score,
         rankName: current.name,
         rankColor: current.color,
-        badgesUnlocked,
-        badgesTotal: badges.length,
+        badgesUnlocked: badgeCount.unlocked,
+        badgesTotal: badgeCount.total,
+        challengeWins: (state.challengeStats && state.challengeStats.wins) || 0,
+        challengePlayed: (state.challengeStats && state.challengeStats.played) || 0,
         dayKey: state.dayKey,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
@@ -220,10 +221,15 @@
           records: cloud.records && typeof cloud.records === 'object' ? cloud.records : { bestScore: null, perExercise: {} },
           dailyGoal: typeof cloud.dailyGoal === 'number' ? cloud.dailyGoal : base.dailyGoal,
           dayNotes: cloud.dayNotes && typeof cloud.dayNotes === 'object' ? cloud.dayNotes : {},
+          plannedSessions: cloud.plannedSessions && typeof cloud.plannedSessions === 'object' ? cloud.plannedSessions : {},
+          plannedChallenges: cloud.plannedChallenges && typeof cloud.plannedChallenges === 'object' ? cloud.plannedChallenges : {},
+          challengeDayResults: cloud.challengeDayResults && typeof cloud.challengeDayResults === 'object' ? cloud.challengeDayResults : {},
           xp: typeof cloud.xp === 'number' ? cloud.xp : 0,
           xpClaimedChallenges: Array.isArray(cloud.xpClaimedChallenges) ? cloud.xpClaimedChallenges : [],
           onboardingDone: !!cloud.onboardingDone,
           onboarding: cloud.onboarding && typeof cloud.onboarding === 'object' ? cloud.onboarding : null,
+          chatNicknames: cloud.chatNicknames && typeof cloud.chatNicknames === 'object' ? cloud.chatNicknames : {},
+          challengeStats: cloud.challengeStats && typeof cloud.challengeStats === 'object' ? cloud.challengeStats : { wins: 0, multiWins: 0, played: 0 },
           seenBadges: Array.isArray(cloud.seenBadges) ? cloud.seenBadges : [],
           secretBadgeUnlocked: typeof cloud.secretBadgeUnlocked === 'boolean' ? cloud.secretBadgeUnlocked : false,
           hackerCelebratedToday: typeof cloud.hackerCelebratedToday === 'boolean' ? cloud.hackerCelebratedToday : false,
@@ -426,11 +432,15 @@
       hackerCelebratedToday: false,
       difficultyBonus: 0,
       dayNotes: {},
+      plannedSessions: {},
+      plannedChallenges: {},
+      challengeDayResults: {},
       xp: 0,
       xpClaimedChallenges: [],
       onboardingDone: false,
       onboarding: null,
-      chatNicknames: {}
+      chatNicknames: {},
+      challengeStats: { wins: 0, multiWins: 0, played: 0 }
     };
   }
 
@@ -476,11 +486,15 @@
         records: parsed.records && typeof parsed.records === 'object' ? parsed.records : { bestScore: null, perExercise: {} },
         dailyGoal: typeof parsed.dailyGoal === 'number' ? parsed.dailyGoal : base.dailyGoal,
         dayNotes: parsed.dayNotes && typeof parsed.dayNotes === 'object' ? parsed.dayNotes : {},
+        plannedSessions: parsed.plannedSessions && typeof parsed.plannedSessions === 'object' ? parsed.plannedSessions : {},
+        plannedChallenges: parsed.plannedChallenges && typeof parsed.plannedChallenges === 'object' ? parsed.plannedChallenges : {},
+        challengeDayResults: parsed.challengeDayResults && typeof parsed.challengeDayResults === 'object' ? parsed.challengeDayResults : {},
         xp: typeof parsed.xp === 'number' ? parsed.xp : 0,
         xpClaimedChallenges: Array.isArray(parsed.xpClaimedChallenges) ? parsed.xpClaimedChallenges : [],
         onboardingDone: !!parsed.onboardingDone,
         onboarding: parsed.onboarding && typeof parsed.onboarding === 'object' ? parsed.onboarding : null,
         chatNicknames: parsed.chatNicknames && typeof parsed.chatNicknames === 'object' ? parsed.chatNicknames : {},
+        challengeStats: parsed.challengeStats && typeof parsed.challengeStats === 'object' ? parsed.challengeStats : { wins: 0, multiWins: 0, played: 0 },
         seenBadges: Array.isArray(parsed.seenBadges) ? parsed.seenBadges : null,
         secretBadgeUnlocked: typeof parsed.secretBadgeUnlocked === 'boolean' ? parsed.secretBadgeUnlocked : null,
         hackerCelebratedToday: typeof parsed.hackerCelebratedToday === 'boolean' ? parsed.hackerCelebratedToday : false,
@@ -752,6 +766,7 @@
     const reachedPerfExtreme = bestScoreEver >= perfExtremeMin;
     const reachedHacker = bestScoreEver >= hackerMin;
 
+    const stats = state.challengeStats || { wins: 0, multiWins: 0, played: 0 };
     return [
       { id: 'premier-jour',   icon: '🥉', img: 'badges/premier-jour.png',   label: 'Premier jour',                liveDone: daysCount >= 1,     current: daysCount, target: 1,     unit: 'jour' },
       { id: 'une-semaine',    icon: '📅', img: 'badges/une-semaine.png',    label: 'Une semaine d\'affilée',       liveDone: streak >= 7,        current: streak, target: 7,     unit: 'jours' },
@@ -762,6 +777,9 @@
       { id: 'mille-pts',      icon: '🔥', img: 'badges/mille-pts.png',      label: '1 000 pts cumulés',           liveDone: allTime >= 1000,    current: allTime, target: 1000,  unit: 'pts' },
       { id: 'cinq-mille-pts', icon: '⭐', img: 'badges/cinq-mille-pts.png', label: '5 000 pts cumulés',           liveDone: allTime >= 5000,    current: allTime, target: 5000,  unit: 'pts' },
       { id: 'dix-mille-pts',  icon: '🏔️', img: 'badges/dix-mille-pts.png',  label: '10 000 pts cumulés',          liveDone: allTime >= 10000,   current: allTime, target: 10000, unit: 'pts' },
+      { id: 'premier-sang',   icon: '⚔️', img: 'badges/premier-sang.png',   label: 'Premier sang — 1 défi gagné', liveDone: (stats.wins || 0) >= 1, current: stats.wins || 0, target: 1, unit: 'victoire' },
+      { id: 'duelliste',      icon: '🗡️', img: 'badges/duelliste.png',      label: 'Duelliste — 5 défis joués',    liveDone: (stats.played || 0) >= 5, current: stats.played || 0, target: 5, unit: 'défis' },
+      { id: 'meute',          icon: '👥', img: 'badges/meute.png',          label: 'Esprit de meute — défi multi gagné', liveDone: (stats.multiWins || 0) >= 1, current: stats.multiWins || 0, target: 1, unit: 'multi' },
     ];
   }
 
@@ -1089,6 +1107,19 @@
     return h ? Math.round(h.score || 0) : null;
   }
 
+  function countBadgesProgress() {
+    const list = typeof getBadges === 'function' ? getBadges() : [];
+    const seen = Array.isArray(state.seenBadges) ? state.seenBadges : [];
+    let unlocked = list.filter(b => seen.includes(b.id) || !!b.liveDone).length;
+    let total = list.length;
+    // Badge secret : compte dans le total seulement s'il est débloqué (sinon X/12, avec secret → X/13)
+    if (state.secretBadgeUnlocked) {
+      unlocked += 1;
+      total += 1;
+    }
+    return { unlocked, total };
+  }
+
   function renderCalendar() {
     const grid = document.getElementById('calGrid');
     const label = document.getElementById('calMonthLabel');
@@ -1114,15 +1145,26 @@
       const key = year + '-' + (month + 1) + '-' + d;
       const sc = scoreForDay(key);
       const note = (state.dayNotes && state.dayNotes[key]) || '';
+      const planned = state.plannedSessions && state.plannedSessions[key];
+      const planCh = state.plannedChallenges && state.plannedChallenges[key];
+      const chRes = state.challengeDayResults && state.challengeDayResults[key];
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'cal-day';
       if (key === todayK) btn.classList.add('today');
       if (sc !== null && sc > 0) btn.classList.add('has-score');
       if (note) btn.classList.add('has-note');
+      if (planned) btn.classList.add('has-plan');
+      if (planCh && planCh.length) btn.classList.add('has-plan-ch');
+      if (chRes && chRes.length) btn.classList.add('has-ch-result');
       if (key === calSelectedKey) btn.classList.add('selected');
+      let dots = '';
+      if (planned) dots += '<span class="cd-dot plan" title="Séance prévue"></span>';
+      if (planCh && planCh.length) dots += '<span class="cd-dot challenge" title="Défi prévu"></span>';
+      if (chRes && chRes.length) dots += '<span class="cd-dot result" title="Résultat défi"></span>';
       btn.innerHTML = `<span class="cd-num">${d}</span>` +
-        (sc !== null && sc > 0 ? `<span class="cd-score">${sc}</span>` : '');
+        (sc !== null && sc > 0 ? `<span class="cd-score">${sc}</span>` : '') +
+        (dots ? `<span class="cd-dots">${dots}</span>` : '');
       btn.addEventListener('click', () => selectCalDay(key));
       grid.appendChild(btn);
     }
@@ -1200,6 +1242,53 @@
     }
 
     noteInput.value = (state.dayNotes && state.dayNotes[key]) || '';
+
+    // Mini-séance prévue
+    const plannedBox = document.getElementById('calPlannedBox');
+    const planTitle = document.getElementById('calPlanTitle');
+    const planDetails = document.getElementById('calPlanDetails');
+    const plan = state.plannedSessions && state.plannedSessions[key];
+    if (planTitle) planTitle.value = plan ? (plan.title || '') : '';
+    if (planDetails) planDetails.value = plan ? (plan.details || '') : '';
+    if (plannedBox) {
+      if (plan && (plan.title || plan.details)) {
+        plannedBox.innerHTML = `<div class="cal-plan-card"><div class="cal-plan-label">📋 Mini-séance prévue</div><strong>${escapeHtml(plan.title || 'Séance')}</strong><div>${escapeHtml(plan.details || '')}</div></div>`;
+      } else {
+        plannedBox.innerHTML = '';
+      }
+    }
+
+    // Défis prévus + résultats
+    const chBox = document.getElementById('calChallengeResults');
+    const planChInput = document.getElementById('calPlanChallenge');
+    if (planChInput) planChInput.value = '';
+    if (chBox) {
+      const plannedCh = (state.plannedChallenges && state.plannedChallenges[key]) || [];
+      const results = (state.challengeDayResults && state.challengeDayResults[key]) || [];
+      let html = '';
+      if (plannedCh.length) {
+        html += '<div class="cal-plan-card"><div class="cal-plan-label">🏆 Défis programmés</div><ul class="cal-exos-list">' +
+          plannedCh.map((t, i) => `<li>${escapeHtml(t)} <button type="button" class="cal-mini-x" data-rm-plan-ch="${i}">×</button></li>`).join('') +
+          '</ul></div>';
+      }
+      if (results.length) {
+        html += '<div class="cal-plan-card result"><div class="cal-plan-label">📊 Résultats de défis</div><ul class="cal-exos-list">' +
+          results.map(r => `<li><strong>${escapeHtml(r.title || 'Défi')}</strong> — ${escapeHtml(r.result || '')}</li>`).join('') +
+          '</ul></div>';
+      }
+      chBox.innerHTML = html;
+      chBox.querySelectorAll('[data-rm-plan-ch]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.getAttribute('data-rm-plan-ch'), 10);
+          if (!state.plannedChallenges[key]) return;
+          state.plannedChallenges[key].splice(idx, 1);
+          if (!state.plannedChallenges[key].length) delete state.plannedChallenges[key];
+          saveState();
+          selectCalDay(key);
+          renderCalendar();
+        });
+      });
+    }
   }
 
   function saveCalNote() {
@@ -1215,6 +1304,63 @@
     renderCalendar();
     document.getElementById('calFlash').textContent = 'Note enregistrée.';
     logEvent('day_note_saved');
+  }
+
+  function saveCalPlan() {
+    if (!calSelectedKey) {
+      document.getElementById('calFlash').textContent = 'Choisis un jour d’abord.';
+      return;
+    }
+    if (!state.plannedSessions) state.plannedSessions = {};
+    const title = (document.getElementById('calPlanTitle').value || '').trim();
+    const details = (document.getElementById('calPlanDetails').value || '').trim();
+    if (!title && !details) {
+      delete state.plannedSessions[calSelectedKey];
+    } else {
+      state.plannedSessions[calSelectedKey] = { title, details };
+    }
+    saveState();
+    if (typeof saveToCloud === 'function') saveToCloud();
+    selectCalDay(calSelectedKey);
+    renderCalendar();
+    document.getElementById('calFlash').textContent = 'Mini-séance enregistrée.';
+  }
+
+  function saveCalChallengePlan() {
+    if (!calSelectedKey) {
+      document.getElementById('calFlash').textContent = 'Choisis un jour d’abord.';
+      return;
+    }
+    const text = (document.getElementById('calPlanChallenge').value || '').trim();
+    if (!text) {
+      document.getElementById('calFlash').textContent = 'Écris un rappel de défi.';
+      return;
+    }
+    if (!state.plannedChallenges) state.plannedChallenges = {};
+    if (!state.plannedChallenges[calSelectedKey]) state.plannedChallenges[calSelectedKey] = [];
+    state.plannedChallenges[calSelectedKey].push(text.slice(0, 80));
+    saveState();
+    if (typeof saveToCloud === 'function') saveToCloud();
+    document.getElementById('calPlanChallenge').value = '';
+    selectCalDay(calSelectedKey);
+    renderCalendar();
+    document.getElementById('calFlash').textContent = 'Défi ajouté au jour.';
+  }
+
+  function recordChallengeDayResult(title, resultText) {
+    const key = todayKey();
+    if (!state.challengeDayResults) state.challengeDayResults = {};
+    if (!state.challengeDayResults[key]) state.challengeDayResults[key] = [];
+    state.challengeDayResults[key].push({
+      title: String(title || 'Défi').slice(0, 80),
+      result: String(resultText || '').slice(0, 160),
+      at: Date.now()
+    });
+    // garde max 12 résultats / jour
+    if (state.challengeDayResults[key].length > 12) {
+      state.challengeDayResults[key] = state.challengeDayResults[key].slice(-12);
+    }
+    saveState();
   }
 
   /* ---- XP / PROFIL ---- */
@@ -1276,20 +1422,49 @@
     document.getElementById('profileXpHint').textContent =
       (nextFloor - xp) + ' XP pour le niveau ' + (level + 1);
 
-    // Stats défis depuis le cache
-    let won = 0, played = 0;
+    // Stats défis (cache + stats persistées)
+    let won = (state.challengeStats && state.challengeStats.wins) || 0;
+    let played = (state.challengeStats && state.challengeStats.played) || 0;
+    let multiWins = (state.challengeStats && state.challengeStats.multiWins) || 0;
     if (typeof cachedChallenges === 'object' && cachedChallenges) {
       Object.values(cachedChallenges).forEach(ch => {
         if (!currentUser) return;
         if (ch.status !== 'completed') return;
-        if (ch.fromUid !== currentUser.uid && ch.toUid !== currentUser.uid) return;
-        played++;
-        if (ch.winnerUid === currentUser.uid) won++;
+        const inCh = ch.fromUid === currentUser.uid || ch.toUid === currentUser.uid ||
+          (Array.isArray(ch.participants) && ch.participants.includes(currentUser.uid));
+        if (!inCh) return;
         tryClaimChallengeXp(ch);
       });
     }
     document.getElementById('statChallengesWon').textContent = String(won);
     document.getElementById('statChallengesPlayed').textContent = String(played);
+    const multiEl = document.getElementById('statMultiWins');
+    if (multiEl) multiEl.textContent = String(multiWins);
+
+    const scoreNow = Math.round(computeScore(state));
+    const rank = getRank(scoreNow).current;
+    const rankLine = document.getElementById('profileRankLine');
+    if (rankLine) {
+      rankLine.innerHTML = `Rang du jour : <strong style="color:${rank.color}">${escapeHtml(rank.name)}</strong> · ${scoreNow} pts`;
+    }
+
+    const bc = countBadgesProgress();
+    const badgeStat = document.getElementById('statBadges');
+    if (badgeStat) badgeStat.textContent = bc.unlocked + '/' + bc.total;
+
+    const prev = document.getElementById('profileBadgesPreview');
+    if (prev) {
+      const raw = getBadges().map(b => ({
+        ...b,
+        done: (state.seenBadges || []).includes(b.id) || !!b.liveDone
+      }));
+      if (state.secretBadgeUnlocked) {
+        raw.push({ id: 'secret', icon: '💎', img: 'badges/collectionneur.png', label: 'Collectionneur', done: true });
+      }
+      prev.innerHTML = raw.slice(0, 8).map(b =>
+        `<div class="profile-badge-chip ${b.done ? 'on' : 'off'}" title="${escapeHtml(b.label)}">${b.icon}</div>`
+      ).join('');
+    }
 
     // Amis
     let friendsCount = 0;
@@ -2087,6 +2262,8 @@
     renderCalendar();
   });
   document.getElementById('calSaveNoteBtn')?.addEventListener('click', saveCalNote);
+  document.getElementById('calSavePlanBtn')?.addEventListener('click', saveCalPlan);
+  document.getElementById('calSaveChallengePlanBtn')?.addEventListener('click', saveCalChallengePlan);
   document.getElementById('dateBadge')?.addEventListener('click', () => {
     showSection('section-calendar');
     closeNav();
@@ -2277,6 +2454,96 @@
     render();
     flash('Score du jour à 0 (admin)');
   });
+  let adminTargetUid = null;
+  let adminTargetPseudo = '';
+
+  document.getElementById('adminLoadPlayerBtn')?.addEventListener('click', async () => {
+    if (!isAdminUser()) return;
+    const pseudo = (document.getElementById('adminTargetPseudo').value || '').trim().toLowerCase();
+    const info = document.getElementById('adminPlayerInfo');
+    if (!pseudo) { info.textContent = 'Entre un pseudo.'; return; }
+    try {
+      const uname = await db.collection('usernames').doc(pseudo).get();
+      if (!uname.exists) {
+        adminTargetUid = null;
+        info.textContent = 'Pseudo introuvable.';
+        return;
+      }
+      adminTargetUid = uname.data().uid;
+      adminTargetPseudo = pseudo;
+      const userSnap = await db.collection('users').doc(adminTargetUid).get();
+      const u = userSnap.exists ? userSnap.data() : {};
+      const stats = u.challengeStats || {};
+      info.textContent = '@' + pseudo + ' · uid …' + String(adminTargetUid).slice(-6) +
+        ' · XP ' + (u.xp || 0) +
+        ' · défis ' + (stats.wins || 0) + '/' + (stats.played || 0);
+      document.getElementById('adminRemoteXp').value = u.xp || 0;
+      document.getElementById('adminRemoteWins').value = stats.wins || 0;
+      document.getElementById('adminRemotePlayed').value = stats.played || 0;
+    } catch (e) {
+      console.error(e);
+      info.textContent = 'Erreur chargement : ' + (e.message || 'rules ?');
+    }
+  });
+
+  document.getElementById('adminRemoteSetXpBtn')?.addEventListener('click', async () => {
+    if (!isAdminUser() || !adminTargetUid) { flash('Charge un joueur d’abord'); return; }
+    const v = parseInt(document.getElementById('adminRemoteXp').value, 10);
+    if (isNaN(v) || v < 0) { flash('XP invalide'); return; }
+    try {
+      await db.collection('users').doc(adminTargetUid).set({ xp: v }, { merge: true });
+      await db.collection('publicProfiles').doc(adminTargetUid).set({
+        xp: v,
+        level: levelFromXp(v),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      flash('XP de @' + adminTargetPseudo + ' → ' + v);
+    } catch (e) {
+      console.error(e);
+      flash('Erreur XP distant');
+    }
+  });
+
+  document.getElementById('adminRemoteStatsBtn')?.addEventListener('click', async () => {
+    if (!isAdminUser() || !adminTargetUid) { flash('Charge un joueur d’abord'); return; }
+    const wins = parseInt(document.getElementById('adminRemoteWins').value, 10) || 0;
+    const played = parseInt(document.getElementById('adminRemotePlayed').value, 10) || 0;
+    try {
+      await db.collection('users').doc(adminTargetUid).set({
+        challengeStats: { wins, played, multiWins: 0 }
+      }, { merge: true });
+      await db.collection('publicProfiles').doc(adminTargetUid).set({
+        challengeWins: wins,
+        challengePlayed: played,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      flash('Stats défis de @' + adminTargetPseudo + ' mises à jour');
+    } catch (e) {
+      console.error(e);
+      flash('Erreur stats distantes');
+    }
+  });
+
+  document.getElementById('adminRemoteGrantAllBadgesBtn')?.addEventListener('click', async () => {
+    if (!isAdminUser() || !adminTargetUid) { flash('Charge un joueur d’abord'); return; }
+    const allIds = getBadges().map(b => b.id);
+    try {
+      await db.collection('users').doc(adminTargetUid).set({
+        seenBadges: allIds,
+        secretBadgeUnlocked: true
+      }, { merge: true });
+      await db.collection('publicProfiles').doc(adminTargetUid).set({
+        badgesUnlocked: allIds.length + 1,
+        badgesTotal: allIds.length + 1,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      flash('Tous badges accordés à @' + adminTargetPseudo);
+    } catch (e) {
+      console.error(e);
+      flash('Erreur badges distants');
+    }
+  });
+
   document.getElementById('adminForceSyncBtn')?.addEventListener('click', async () => {
     if (!isAdminUser()) return;
     if (!currentUser) { flash('Pas connecté'); return; }
@@ -2829,20 +3096,29 @@
   }
 
   async function populateChallengeFriends() {
-    const sel = document.getElementById('challengeFriendSelect');
-    if (!sel || !currentUser) return;
-    sel.innerHTML = '<option value="">Choisir un ami…</option>';
+    const box = document.getElementById('challengeFriendsPick');
+    if (!box || !currentUser) return;
+    box.innerHTML = '<div class="social-empty">Chargement…</div>';
     try {
       const snap = await db.collection('users').doc(currentUser.uid).collection('friends').get();
+      if (snap.empty) {
+        box.innerHTML = '<div class="social-empty">Ajoute des amis d’abord</div>';
+        return;
+      }
+      box.innerHTML = '';
       snap.forEach(doc => {
         const f = doc.data();
-        const opt = document.createElement('option');
-        opt.value = doc.id;
-        opt.textContent = '@' + (f.pseudo || doc.id);
-        opt.dataset.pseudo = f.pseudo || doc.id;
-        sel.appendChild(opt);
+        const pseudo = f.pseudo || doc.id;
+        const label = displayNameForUid ? displayNameForUid(doc.id, pseudo) : pseudo;
+        const row = document.createElement('label');
+        row.className = 'group-pick-row';
+        row.innerHTML = `<input type="checkbox" class="ch-friend-cb" value="${doc.id}" data-pseudo="${escapeHtml(pseudo)}"><span>@${escapeHtml(label)}</span>`;
+        box.appendChild(row);
       });
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      box.innerHTML = '<div class="social-empty">Erreur</div>';
+    }
   }
 
   function populateChallengeExercises() {
@@ -2870,19 +3146,38 @@
       socialFlash('Connecte-toi avec un pseudo.', 'err');
       return;
     }
-    const sel = document.getElementById('challengeFriendSelect');
-    const toUid = sel.value;
-    if (!toUid) { socialFlash('Choisis un ami.', 'err'); return; }
-    const toPseudo = sel.options[sel.selectedIndex].dataset.pseudo || sel.options[sel.selectedIndex].textContent.replace('@','');
+    const checks = Array.from(document.querySelectorAll('#challengeFriendsPick .ch-friend-cb:checked'));
+    if (!checks.length) { socialFlash('Choisis au moins un ami.', 'err'); return; }
+    if (checks.length > 3) { socialFlash('Maximum 3 adversaires (4 joueurs).', 'err'); return; }
+
+    const others = checks.map(c => ({
+      uid: c.value,
+      pseudo: c.getAttribute('data-pseudo') || c.value
+    }));
     const type = document.getElementById('challengeTypeSelect').value;
+
+    if (type === 'chrono' && others.length !== 1) {
+      socialFlash('Le chrono est uniquement en duel (1 adversaire).', 'err');
+      return;
+    }
+
+    const participants = [currentUser.uid, ...others.map(o => o.uid)];
+    const pseudos = { [currentUser.uid]: state.pseudo };
+    others.forEach(o => { pseudos[o.uid] = o.pseudo; });
+    const scores = {};
+    participants.forEach(u => { scores[u] = null; });
 
     const data = {
       type,
+      mode: participants.length > 2 ? 'multi' : 'duo',
       fromUid: currentUser.uid,
       fromPseudo: state.pseudo,
-      toUid,
-      toPseudo,
-      status: 'pending',
+      toUid: others[0].uid,
+      toPseudo: others[0].pseudo,
+      participants,
+      pseudos,
+      scores,
+      status: participants.length > 2 ? 'active' : 'pending',
       dayKey: todayKey(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -2912,11 +3207,22 @@
         toMs: null
       };
     }
+    // Duo score/exercise/goal starts pending (accept) — multi starts active
+    if (type !== 'chrono' && participants.length === 2) {
+      data.status = 'pending';
+    }
+    if (type !== 'chrono' && participants.length > 2) {
+      data.status = 'active';
+    }
 
     try {
       await db.collection('challenges').add(data);
-      socialFlash('Défi envoyé à @' + toPseudo, 'ok');
-      logEvent('challenge_sent', { type });
+      if (participants.length > 2) {
+        socialFlash('Défi multi envoyé (' + participants.length + ' joueurs)', 'ok');
+      } else {
+        socialFlash('Défi envoyé à @' + others[0].pseudo, 'ok');
+      }
+      logEvent('challenge_sent', { type, n: participants.length });
     } catch (e) {
       console.error(e);
       socialFlash('Erreur envoi défi (règles Firestore ?)', 'err');
@@ -3229,6 +3535,7 @@
           fromUid: ch.fromUid,
           toUid: ch.toUid
         });
+        bumpChallengeStats(winnerUid, true, { title: 'Défi multi', result: resultText });
         if (winnerUid === currentUser.uid) socialFlash('🏆 Tu as gagné ! ' + resultText, 'ok');
         else if (winnerUid === 'draw') socialFlash('Égalité — ' + resultText, 'ok');
         else socialFlash('Classement — ' + resultText, 'ok');
@@ -3279,6 +3586,7 @@
         fromUid: ch.fromUid,
         toUid: ch.toUid
       });
+      bumpChallengeStats(winnerUid, false, { title: 'Défi', result: resultText });
       if (winnerUid === currentUser.uid) socialFlash('🏆 Tu as gagné ! ' + resultText, 'ok');
       else if (winnerUid === 'draw') socialFlash('Égalité — ' + resultText, 'ok');
       else socialFlash('Perdu — ' + resultText, 'err');
@@ -3286,6 +3594,25 @@
       console.error(e);
       socialFlash('Erreur : ' + (e.message || 'clôture impossible'), 'err');
     }
+  }
+
+  function bumpChallengeStats(winnerUid, isMulti, meta) {
+    if (!state.challengeStats) state.challengeStats = { wins: 0, multiWins: 0, played: 0 };
+    state.challengeStats.played = (state.challengeStats.played || 0) + 1;
+    if (winnerUid === currentUser.uid) {
+      state.challengeStats.wins = (state.challengeStats.wins || 0) + 1;
+      if (isMulti) state.challengeStats.multiWins = (state.challengeStats.multiWins || 0) + 1;
+    }
+    const title = (meta && meta.title) || (isMulti ? 'Défi multi' : 'Défi');
+    const result = (meta && meta.result) || (
+      winnerUid === currentUser.uid ? 'Victoire' :
+      winnerUid === 'draw' ? 'Égalité' : 'Défaite'
+    );
+    recordChallengeDayResult(title, result);
+    saveState();
+    if (typeof buildBadges === 'function') buildBadges();
+    if (typeof renderProfile === 'function') renderProfile();
+    if (typeof saveToCloud === 'function') saveToCloud();
   }
 
   async function tryStartChronoIfBothReady(challengeId) {
@@ -3467,7 +3794,6 @@
     activeChatId = null;
     activeChatMeta = null;
     renderConversationsList();
-    renderChatFriendsList();
   }
 
   function openChatThread(chatId, meta) {
@@ -3802,8 +4128,9 @@
     if (!nick) delete state.chatNicknames[other];
     else state.chatNicknames[other] = nick;
     saveState();
+    if (typeof saveToCloud === 'function') saveToCloud();
     document.getElementById('chatThreadTitle').textContent = chatTitleFromMeta(activeChatMeta);
-    socialFlash(nick ? 'Surnom enregistré' : 'Surnom effacé', 'ok');
+    socialFlash(nick ? 'Surnom synchronisé (tous tes appareils)' : 'Surnom effacé', 'ok');
   }
 
   function toggleChatPlusMenu() {

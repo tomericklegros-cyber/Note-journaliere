@@ -2515,3 +2515,75 @@ body:not(.light-theme) .side-nav {
 .challenge-card.multi .ctype {
   letter-spacing: 0.02em;
 }
+
+/* ---- Profil enrichi + calendrier plans ---- */
+.profile-rank-line {
+  margin: 8px 0 12px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.profile-badges-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 8px;
+}
+.profile-badge-chip {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  border: 1px solid var(--line);
+  background: var(--stone-dark);
+}
+.profile-badge-chip.on {
+  border-color: var(--purple);
+  background: rgba(var(--accent-rgb), 0.14);
+}
+.profile-badge-chip.off { opacity: 0.35; filter: grayscale(0.8); }
+
+.cal-day.has-plan { box-shadow: inset 0 -2px 0 var(--purple); }
+.cd-dots {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+  margin-top: 2px;
+}
+.cd-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--purple);
+}
+.cd-dot.challenge { background: #F59E0B; }
+.cd-dot.result { background: #3B82F6; }
+
+.cal-planned-box, .cal-challenge-results { margin: 10px 0; }
+.cal-plan-card {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--stone-dark);
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.cal-plan-card.result { border-color: rgba(59,130,246,0.45); }
+.cal-plan-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cal-mini-x {
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 14px;
+  margin-left: 6px;
+}
