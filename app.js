@@ -193,14 +193,25 @@
     }
   }
 
+  function sanitizeStateForCloud(s) {
+    // Firestore refuse undefined — on nettoie
+    try {
+      return JSON.parse(JSON.stringify(s));
+    } catch (e) {
+      return { ...s };
+    }
+  }
+
   async function saveToCloud() {
-    if (!currentUser || syncing) return;
+    if (!currentUser || syncing || !db) return;
     syncing = true;
     try {
+      state.clientUpdatedAt = Date.now();
+      const clean = sanitizeStateForCloud(state);
       const payload = {
-        ...state,
+        ...clean,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        clientUpdatedAt: Date.now()
+        clientUpdatedAt: state.clientUpdatedAt
       };
       await db.collection('users').doc(currentUser.uid).set(payload, { merge: true });
       await publishPublicProfile();
@@ -214,42 +225,91 @@
     }
   }
 
+  function stateRichness(s) {
+    if (!s) return 0;
+    let score = 0;
+    score += (s.history && s.history.length) ? s.history.length * 10 : 0;
+    score += (s.xp || 0);
+    score += (s.exercises || []).reduce((a, ex) => a + (ex.value || 0), 0);
+    score += (s.seenBadges && s.seenBadges.length) ? s.seenBadges.length : 0;
+    score += (s.unlockedAvatars && s.unlockedAvatars.length) ? s.unlockedAvatars.length : 0;
+    score += (s.dayNotes && Object.keys(s.dayNotes).length) ? Object.keys(s.dayNotes).length : 0;
+    return score;
+  }
+
+  function buildStateFromCloud(cloud, local) {
+    const base = defaultState();
+    const src = cloud || {};
+    const loc = local || base;
+    // Pour chaque champ : cloud si présent et utile, sinon local, sinon défaut
+    const pickArr = (c, l, d) => (Array.isArray(c) && c.length ? c : (Array.isArray(l) && l.length ? l : d));
+    const pickObj = (c, l, d) => (c && typeof c === 'object' && Object.keys(c).length ? c : (l && typeof l === 'object' && Object.keys(l).length ? l : d));
+    const pickStr = (c, l, d) => (typeof c === 'string' && c ? c : (typeof l === 'string' && l ? l : d));
+    const pickNum = (c, l, d) => (typeof c === 'number' ? c : (typeof l === 'number' ? l : d));
+    const pickBool = (c, l, d) => (typeof c === 'boolean' ? c : (typeof l === 'boolean' ? l : d));
+
+    return {
+      userName: pickStr(src.userName, loc.userName, base.userName),
+      pseudo: pickStr(src.pseudo, loc.pseudo, base.pseudo),
+      dayKey: src.dayKey || loc.dayKey || base.dayKey,
+      exercises: pickArr(src.exercises, loc.exercises, base.exercises),
+      history: pickArr(src.history, loc.history, []),
+      records: (src.records && typeof src.records === 'object') ? src.records
+        : ((loc.records && typeof loc.records === 'object') ? loc.records : { bestScore: null, perExercise: {} }),
+      dailyGoal: pickNum(src.dailyGoal, loc.dailyGoal, base.dailyGoal),
+      dayNotes: pickObj(src.dayNotes, loc.dayNotes, {}),
+      plannedSessions: pickObj(src.plannedSessions, loc.plannedSessions, {}),
+      plannedChallenges: pickObj(src.plannedChallenges, loc.plannedChallenges, {}),
+      challengeDayResults: pickObj(src.challengeDayResults, loc.challengeDayResults, {}),
+      xp: pickNum(src.xp, loc.xp, 0),
+      xpClaimedChallenges: pickArr(src.xpClaimedChallenges, loc.xpClaimedChallenges, []),
+      onboardingDone: !!(src.onboardingDone || loc.onboardingDone),
+      onboarding: (src.onboarding && typeof src.onboarding === 'object') ? src.onboarding : (loc.onboarding || null),
+      chatNicknames: pickObj(src.chatNicknames, loc.chatNicknames, {}),
+      challengeStats: (src.challengeStats && typeof src.challengeStats === 'object') ? src.challengeStats
+        : ((loc.challengeStats && typeof loc.challengeStats === 'object') ? loc.challengeStats : { wins: 0, multiWins: 0, played: 0 }),
+      unlockedAvatars: pickArr(src.unlockedAvatars, loc.unlockedAvatars, ['default']),
+      unlockedFonts: pickArr(src.unlockedFonts, loc.unlockedFonts, ['default']),
+      selectedAvatar: pickStr(src.selectedAvatar, loc.selectedAvatar, 'default'),
+      selectedFont: pickStr(src.selectedFont, loc.selectedFont, 'default'),
+      badgeRewardsClaimed: pickArr(src.badgeRewardsClaimed, loc.badgeRewardsClaimed, []),
+      seenBadges: Array.isArray(src.seenBadges) ? src.seenBadges : (Array.isArray(loc.seenBadges) ? loc.seenBadges : []),
+      secretBadgeUnlocked: pickBool(src.secretBadgeUnlocked, loc.secretBadgeUnlocked, false),
+      hackerCelebratedToday: pickBool(src.hackerCelebratedToday, loc.hackerCelebratedToday, false),
+      difficultyBonus: pickNum(src.difficultyBonus, loc.difficultyBonus, 0),
+      clientUpdatedAt: pickNum(src.clientUpdatedAt, loc.clientUpdatedAt, 0)
+    };
+  }
+
   async function loadFromCloud(user) {
     try {
+      if (!db) return false;
       setAuthStatus('Chargement du cloud…', null);
+      const localBackup = sanitizeStateForCloud(state);
       const snap = await db.collection('users').doc(user.uid).get();
       if (snap.exists) {
-        const cloud = snap.data();
-        // Prefer cloud data when it exists
-        const base = defaultState();
-        state = {
-          userName: typeof cloud.userName === 'string' ? cloud.userName : base.userName,
-          pseudo: typeof cloud.pseudo === 'string' ? cloud.pseudo : base.pseudo,
-          dayKey: cloud.dayKey || base.dayKey,
-          exercises: Array.isArray(cloud.exercises) && cloud.exercises.length ? cloud.exercises : base.exercises,
-          history: Array.isArray(cloud.history) ? cloud.history : [],
-          records: cloud.records && typeof cloud.records === 'object' ? cloud.records : { bestScore: null, perExercise: {} },
-          dailyGoal: typeof cloud.dailyGoal === 'number' ? cloud.dailyGoal : base.dailyGoal,
-          dayNotes: cloud.dayNotes && typeof cloud.dayNotes === 'object' ? cloud.dayNotes : {},
-          plannedSessions: cloud.plannedSessions && typeof cloud.plannedSessions === 'object' ? cloud.plannedSessions : {},
-          plannedChallenges: cloud.plannedChallenges && typeof cloud.plannedChallenges === 'object' ? cloud.plannedChallenges : {},
-          challengeDayResults: cloud.challengeDayResults && typeof cloud.challengeDayResults === 'object' ? cloud.challengeDayResults : {},
-          xp: typeof cloud.xp === 'number' ? cloud.xp : 0,
-          xpClaimedChallenges: Array.isArray(cloud.xpClaimedChallenges) ? cloud.xpClaimedChallenges : [],
-          onboardingDone: !!cloud.onboardingDone,
-          onboarding: cloud.onboarding && typeof cloud.onboarding === 'object' ? cloud.onboarding : null,
-          chatNicknames: cloud.chatNicknames && typeof cloud.chatNicknames === 'object' ? cloud.chatNicknames : {},
-          challengeStats: cloud.challengeStats && typeof cloud.challengeStats === 'object' ? cloud.challengeStats : { wins: 0, multiWins: 0, played: 0 },
-          unlockedAvatars: Array.isArray(cloud.unlockedAvatars) ? cloud.unlockedAvatars : ['default'],
-          unlockedFonts: Array.isArray(cloud.unlockedFonts) ? cloud.unlockedFonts : ['default'],
-          selectedAvatar: typeof cloud.selectedAvatar === 'string' ? cloud.selectedAvatar : 'default',
-          selectedFont: typeof cloud.selectedFont === 'string' ? cloud.selectedFont : 'default',
-          badgeRewardsClaimed: Array.isArray(cloud.badgeRewardsClaimed) ? cloud.badgeRewardsClaimed : [],
-          seenBadges: Array.isArray(cloud.seenBadges) ? cloud.seenBadges : [],
-          secretBadgeUnlocked: typeof cloud.secretBadgeUnlocked === 'boolean' ? cloud.secretBadgeUnlocked : false,
-          hackerCelebratedToday: typeof cloud.hackerCelebratedToday === 'boolean' ? cloud.hackerCelebratedToday : false,
-          difficultyBonus: typeof cloud.difficultyBonus === 'number' ? cloud.difficultyBonus : 0
-        };
+        const cloud = snap.data() || {};
+        const cloudTime = typeof cloud.clientUpdatedAt === 'number' ? cloud.clientUpdatedAt : 0;
+        const localTime = typeof localBackup.clientUpdatedAt === 'number' ? localBackup.clientUpdatedAt : 0;
+        const localScore = stateRichness(localBackup);
+        const cloudScore = stateRichness(cloud);
+
+        // Si le local est clairement plus récent OU nettement plus riche → on garde local et on pousse cloud
+        if ((localTime > cloudTime + 2000 && localScore >= cloudScore) || (localScore > cloudScore * 1.25 && localScore > 5 && localTime >= cloudTime)) {
+          state = buildStateFromCloud(cloud, localBackup); // merge quand même les champs manquants côté local
+          // puis on privilégie les valeurs locales riches
+          if (localScore > cloudScore) {
+            state = buildStateFromCloud(localBackup, cloud);
+          }
+          finalizeDayIfNeeded();
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+          await saveToCloud();
+          setAuthStatus('Local plus récent — cloud mis à jour', 'synced');
+          logEvent('cloud_kept_local');
+          return true;
+        }
+
+        state = buildStateFromCloud(cloud, localBackup);
         if (!state.exercises.some(ex => ex.id === 'gainage')) {
           state.exercises = [...state.exercises, { id: "gainage", name: "Gainage", points: 5, unit: "minute", decimal: true, value: 0 }];
         }
@@ -267,12 +327,12 @@
       }
     } catch (err) {
       console.error('Cloud load error', err);
-      setAuthStatus('Erreur de chargement cloud', 'error');
+      setAuthStatus('Erreur de chargement cloud — données locales conservées', 'error');
       return false;
     }
   }
 
-  auth.onAuthStateChanged(async (user) => {
+  if (auth) auth.onAuthStateChanged(async (user) => {
     currentUser = user;
     updateAuthUI(user);
     if (user) {
@@ -531,7 +591,10 @@
   }
 
   function saveState() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    try {
+      state.clientUpdatedAt = Date.now();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {}
     // Sync to cloud (debounced a little)
     if (currentUser) {
       clearTimeout(window._cloudSaveTimer);
@@ -540,7 +603,8 @@
   }
 
   function computeScore(s) {
-    return s.exercises.reduce((sum, ex) => sum + (ex.value * ex.points), 0) + (s.difficultyBonus || 0);
+    if (!s || !Array.isArray(s.exercises)) return 0;
+    return s.exercises.reduce((sum, ex) => sum + ((ex.value || 0) * (ex.points || 0)), 0) + (s.difficultyBonus || 0);
   }
 
   function getRank(score) {
@@ -651,7 +715,9 @@
 
   function buildForm() {
     const form = document.getElementById('exerciseForm');
+    if (!form) return;
     form.innerHTML = '';
+    if (!state || !Array.isArray(state.exercises)) return;
     state.exercises.forEach(ex => {
       const field = document.createElement('div');
       field.className = 'exo-card field';
@@ -932,8 +998,11 @@
       }
     }
 
-    // Rattrapage : badges déjà obtenus sans récompense (tests / anciens saves)
-    claimAllUnlockedBadgeRewards();
+    // Rattrapage une seule fois par session
+    if (!window._badgeRewardsCatchupDone) {
+      window._badgeRewardsCatchupDone = true;
+      claimAllUnlockedBadgeRewards();
+    }
 
     const badges = rawBadges.map(b => ({ ...b, done: (state.seenBadges || []).includes(b.id) || !!b.liveDone }));
 
@@ -1142,6 +1211,12 @@
   }
 
   function render() {
+    try {
+    if (!state || !Array.isArray(state.exercises)) {
+      console.warn('state invalide, reset partiel');
+      state = Object.assign(defaultState(), state || {});
+      if (!Array.isArray(state.exercises)) state.exercises = defaultExercises();
+    }
     const score = computeScore(state);
     const { current, next } = getRank(score);
     checkHackerRank(score);
@@ -1221,6 +1296,10 @@
       renderCalendar();
     }
     saveState();
+    } catch (err) {
+      console.error('render error', err);
+      try { showSection('section-today'); } catch (e) {}
+    }
   }
 
   /* ---- CALENDRIER ---- */
@@ -2399,16 +2478,22 @@
     flash("Paramètres mis à jour.");
   });
 
-  buildTubeBands();
-  buildLegend();
-  buildForm();
-  buildTimerExerciseSelect();
-  buildChartTabs();
-  initTips();
-  render();
+  try {
+    buildTubeBands();
+    buildLegend();
+    buildForm();
+    buildTimerExerciseSelect();
+    buildChartTabs();
+    initTips();
+    showSection('section-today');
+    render();
+  } catch (err) {
+    console.error('boot error', err);
+    try { showSection('section-today'); } catch (e) {}
+  }
 
   if (!state.userName) {
-    openEditModal();
+    try { openEditModal(); } catch (e) {}
   }
 
   const WELCOME_KEY = "note_journaliere_welcome_dismissed";
@@ -4758,7 +4843,7 @@
     });
   });
 
-  auth.onAuthStateChanged((user) => {
+  auth && auth.onAuthStateChanged((user) => {
     refreshSocialLoginGate();
     if (!user) {
       stopSocialListeners();

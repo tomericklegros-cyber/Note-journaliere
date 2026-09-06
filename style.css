@@ -2866,3 +2866,20 @@ body:not(.light-theme) .side-nav {
   filter: grayscale(1);
   cursor: not-allowed;
 }
+
+
+/* force visible today */
+.app-section.active {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-height: 200px;
+}
+.today-dashboard {
+  display: grid !important;
+  visibility: visible !important;
+}
+.dash-gauge, .dash-score, .dash-exercises {
+  display: block !important;
+  visibility: visible !important;
+}
