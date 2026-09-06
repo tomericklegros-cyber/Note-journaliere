@@ -859,14 +859,17 @@
   .intro-splash {
     position: fixed;
     inset: 0;
-    z-index: 600;
+    z-index: 9999;
     background: var(--stone);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 30px 24px;
+    padding: 24px 20px 32px;
     opacity: 1;
     transition: opacity 0.4s ease;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    pointer-events: auto;
   }
   .intro-splash.hide {
     opacity: 0;
@@ -874,11 +877,26 @@
   }
   .intro-content {
     max-width: 460px;
+    width: 100%;
     text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 18px;
+    gap: 16px;
+    margin: auto;
+    position: relative;
+    z-index: 2;
+    pointer-events: auto;
+  }
+  .intro-content .add-btn,
+  #introSkipBtn {
+    position: relative;
+    z-index: 3;
+    pointer-events: auto !important;
+    cursor: pointer;
+    min-height: 48px;
+    width: 100%;
+    max-width: 260px;
   }
   .intro-logo {
     width: 130px;

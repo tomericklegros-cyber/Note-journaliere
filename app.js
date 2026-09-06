@@ -2807,21 +2807,49 @@
     }
   }
 
+  function dismissIntro() {
+    const splash = document.getElementById('introSplash');
+    if (!splash) {
+      openOnboarding();
+      return;
+    }
+    splash.classList.add('hide');
+    try { localStorage.setItem(INTRO_KEY, '1'); } catch (e) {}
+    setTimeout(() => {
+      splash.style.display = 'none';
+      openOnboarding();
+    }, 280);
+  }
+
   try {
     if (localStorage.getItem(INTRO_KEY) === '1') {
-      introSplash.style.display = 'none';
+      if (introSplash) introSplash.style.display = 'none';
       // Intro déjà vue → proposer onboarding si pas fait
       setTimeout(openOnboarding, 300);
     }
   } catch (e) {}
 
-  document.getElementById('introSkipBtn').addEventListener('click', () => {
-    introSplash.classList.add('hide');
-    try { localStorage.setItem(INTRO_KEY, '1'); } catch (e) {}
-    setTimeout(() => {
-      introSplash.style.display = 'none';
-      openOnboarding();
-    }, 400);
+  const introSkipBtn = document.getElementById('introSkipBtn');
+  if (introSkipBtn) {
+    introSkipBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dismissIntro();
+    });
+  }
+  document.getElementById('introSkipBtn2')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dismissIntro();
+  });
+  // Secours : Entrée / Espace sur l'écran d'intro
+  document.addEventListener('keydown', (e) => {
+    const splash = document.getElementById('introSplash');
+    if (!splash || splash.style.display === 'none' || splash.classList.contains('hide')) return;
+    if (e.key === 'Enter' || e.key === 'Escape') {
+      e.preventDefault();
+      dismissIntro();
+    }
   });
 
   // Choix single
