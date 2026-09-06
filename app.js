@@ -11,11 +11,21 @@
     measurementId: "G-QVPHXN13MS"
   };
 
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-  const db = firebase.firestore();
+  let auth = null;
+  let db = null;
   let analytics = null;
-  try { analytics = firebase.analytics(); } catch (e) {}
+  try {
+    if (typeof firebase !== 'undefined') {
+      firebase.initializeApp(firebaseConfig);
+      auth = firebase.auth();
+      db = firebase.firestore();
+      try { analytics = firebase.analytics(); } catch (e) {}
+    } else {
+      console.warn('Firebase indisponible — mode local uniquement');
+    }
+  } catch (e) {
+    console.warn('Firebase init error', e);
+  }
 
   let currentUser = null;
   let syncing = false;
@@ -786,41 +796,41 @@
     const multi = stats.multiWins || 0;
 
     return [
-      { id: 'premier-jour',   icon: '🥉', img: 'badges/premier-jour.png',   label: 'Premier jour',                liveDone: daysCount >= 1,     current: daysCount, target: 1,     unit: 'jour', reward: { xp: 20, avatar: 'seedling' } },
+      { id: 'premier-jour',   icon: '🥉', img: 'badges/premier-jour.png',   label: 'Premier jour',                liveDone: daysCount >= 1,     current: daysCount, target: 1,     unit: 'jour', reward: { xp: 20, avatar: 'flame' } },
       { id: 'une-semaine',    icon: '📅', img: 'badges/une-semaine.png',    label: 'Une semaine d\'affilée',       liveDone: streak >= 7,        current: streak, target: 7,     unit: 'jours', reward: { xp: 40, font: 'mono' } },
-      { id: 'un-mois',        icon: '🗓️', img: 'badges/un-mois.png',        label: 'Un mois d\'affilée',           liveDone: streak >= 30,       current: streak, target: 30,    unit: 'jours', reward: { xp: 100, avatar: 'calendar' } },
-      { id: 'premier-record', icon: '🏆', img: 'badges/premier-record.png', label: 'Premier record battu',        liveDone: !!state.records.bestScore, current: null, target: null, unit: '', reward: { xp: 30, avatar: 'trophy' } },
+      { id: 'un-mois',        icon: '🗓️', img: 'badges/un-mois.png',        label: 'Un mois d\'affilée',           liveDone: streak >= 30,       current: streak, target: 30,    unit: 'jours', reward: { xp: 100, avatar: 'bolt' } },
+      { id: 'premier-record', icon: '🏆', img: 'badges/premier-record.png', label: 'Premier record battu',        liveDone: !!state.records.bestScore, current: null, target: null, unit: '', reward: { xp: 30, avatar: 'rocket' } },
       { id: 'perf-extreme',   icon: '👑', img: 'badges/perf-extreme.png',   label: 'Performance extrême atteint', liveDone: reachedPerfExtreme, current: bestScoreEver, target: perfExtremeMin, unit: 'pts', reward: { xp: 80, avatar: 'crown' } },
-      { id: 'hacker',         icon: '🖥️', img: 'badges/hacker.png',         label: 'Rang Hacker atteint',         liveDone: reachedHacker,      current: bestScoreEver, target: hackerMin, unit: 'pts', reward: { xp: 120, font: 'neon', avatar: 'hacker' } },
+      { id: 'hacker',         icon: '🖥️', img: 'badges/hacker.png',         label: 'Rang Hacker atteint',         liveDone: reachedHacker,      current: bestScoreEver, target: hackerMin, unit: 'pts', reward: { xp: 120, font: 'neon', avatar: 'skull' } },
       { id: 'mille-pts',      icon: '🔥', img: 'badges/mille-pts.png',      label: '1 000 pts cumulés',           liveDone: allTime >= 1000,    current: allTime, target: 1000,  unit: 'pts', reward: { xp: 25 } },
-      { id: 'cinq-mille-pts', icon: '⭐', img: 'badges/cinq-mille-pts.png', label: '5 000 pts cumulés',           liveDone: allTime >= 5000,    current: allTime, target: 5000,  unit: 'pts', reward: { xp: 60, avatar: 'star' } },
+      { id: 'cinq-mille-pts', icon: '⭐', img: 'badges/cinq-mille-pts.png', label: '5 000 pts cumulés',           liveDone: allTime >= 5000,    current: allTime, target: 5000,  unit: 'pts', reward: { xp: 60, avatar: 'diamond' } },
       { id: 'dix-mille-pts',  icon: '🏔️', img: 'badges/dix-mille-pts.png',  label: '10 000 pts cumulés',          liveDone: allTime >= 10000,   current: allTime, target: 10000, unit: 'pts', reward: { xp: 150, font: 'display' } },
       // Badges défis évolutifs (plusieurs paliers)
-      { id: 'premier-sang',   icon: '⚔️', img: null, label: 'Premier sang I',  liveDone: wins >= 1,  current: wins, target: 1,  unit: 'victoire', tier: 1, family: 'sang', reward: { xp: 30, avatar: 'sword' } },
+      { id: 'premier-sang',   icon: '⚔️', img: null, label: 'Premier sang I',  liveDone: wins >= 1,  current: wins, target: 1,  unit: 'victoire', tier: 1, family: 'sang', reward: { xp: 30, avatar: 'dragon' } },
       { id: 'premier-sang-2', icon: '⚔️', img: null, label: 'Premier sang II', liveDone: wins >= 5,  current: wins, target: 5,  unit: 'victoires', tier: 2, family: 'sang', reward: { xp: 50, font: 'mono' } },
-      { id: 'premier-sang-3', icon: '⚔️', img: null, label: 'Premier sang III',liveDone: wins >= 15, current: wins, target: 15, unit: 'victoires', tier: 3, family: 'sang', reward: { xp: 100, avatar: 'sword-gold' } },
+      { id: 'premier-sang-3', icon: '⚔️', img: null, label: 'Premier sang III',liveDone: wins >= 15, current: wins, target: 15, unit: 'victoires', tier: 3, family: 'sang', reward: { xp: 100, avatar: 'phoenix' } },
       { id: 'duelliste',      icon: '🗡️', img: null, label: 'Duelliste I',     liveDone: played >= 5,  current: played, target: 5,  unit: 'défis', tier: 1, family: 'duel', reward: { xp: 25 } },
-      { id: 'duelliste-2',    icon: '🗡️', img: null, label: 'Duelliste II',    liveDone: played >= 15, current: played, target: 15, unit: 'défis', tier: 2, family: 'duel', reward: { xp: 50, avatar: 'duel' } },
+      { id: 'duelliste-2',    icon: '🗡️', img: null, label: 'Duelliste II',    liveDone: played >= 15, current: played, target: 15, unit: 'défis', tier: 2, family: 'duel', reward: { xp: 50, avatar: 'bolt' } },
       { id: 'duelliste-3',    icon: '🗡️', img: null, label: 'Duelliste III',   liveDone: played >= 40, current: played, target: 40, unit: 'défis', tier: 3, family: 'duel', reward: { xp: 90, font: 'display' } },
-      { id: 'meute',          icon: '👥', img: null, label: 'Esprit de meute I',  liveDone: multi >= 1, current: multi, target: 1, unit: 'multi', tier: 1, family: 'meute', reward: { xp: 40, avatar: 'pack' } },
+      { id: 'meute',          icon: '👥', img: null, label: 'Esprit de meute I',  liveDone: multi >= 1, current: multi, target: 1, unit: 'multi', tier: 1, family: 'meute', reward: { xp: 40, avatar: 'wolf' } },
       { id: 'meute-2',        icon: '👥', img: null, label: 'Esprit de meute II', liveDone: multi >= 3, current: multi, target: 3, unit: 'multi', tier: 2, family: 'meute', reward: { xp: 70, font: 'neon' } },
-      { id: 'meute-3',        icon: '👥', img: null, label: 'Esprit de meute III',liveDone: multi >= 10,current: multi, target: 10,unit: 'multi', tier: 3, family: 'meute', reward: { xp: 150, avatar: 'pack-gold' } },
+      { id: 'meute-3',        icon: '👥', img: null, label: 'Esprit de meute III',liveDone: multi >= 10,current: multi, target: 10,unit: 'multi', tier: 3, family: 'meute', reward: { xp: 150, avatar: 'phoenix' } },
+      { id: 'mythique', icon: '🌌', img: null, label: 'Rang Mythique — niveau 100', liveDone: levelFromXp(state.xp || 0) >= 100, current: levelFromXp(state.xp || 0), target: 100, unit: 'niv', reward: { xp: 300, avatar: 'mythic', font: 'neon' } },
     ];
   }
 
   const AVATAR_CATALOG = {
     default: { emoji: '🙂', label: 'Classique' },
-    seedling: { emoji: '🌱', label: 'Pousse' },
-    calendar: { emoji: '📆', label: 'Assidu' },
-    trophy: { emoji: '🏆', label: 'Trophée' },
+    flame: { emoji: '🔥', label: 'Flamme' },
+    bolt: { emoji: '⚡', label: 'Éclair' },
+    dragon: { emoji: '🐉', label: 'Dragon' },
+    skull: { emoji: '💀', label: 'Crâne' },
+    rocket: { emoji: '🚀', label: 'Fusée' },
     crown: { emoji: '👑', label: 'Couronne' },
-    hacker: { emoji: '💻', label: 'Hacker' },
-    star: { emoji: '⭐', label: 'Étoile' },
-    sword: { emoji: '⚔️', label: 'Lame' },
-    'sword-gold': { emoji: '🗡️', label: 'Lame d\'or' },
-    duel: { emoji: '🥊', label: 'Duelliste' },
-    pack: { emoji: '🐺', label: 'Meute' },
-    'pack-gold': { emoji: '🦊', label: 'Meute d\'or' }
+    diamond: { emoji: '💎', label: 'Diamant' },
+    wolf: { emoji: '🐺', label: 'Loup' },
+    phoenix: { emoji: '🦅', label: 'Phénix' },
+    mythic: { emoji: '🌌', label: 'Mythique' }
   };
 
   const FONT_CATALOG = {
@@ -836,18 +846,32 @@
     if (state.badgeRewardsClaimed.includes(badge.id)) return;
     state.badgeRewardsClaimed.push(badge.id);
     const r = badge.reward;
-    if (r.xp) {
+    const gained = [];
+    if (r.xp && r.xp > 0) {
       state.xp = (state.xp || 0) + r.xp;
+      gained.push('+' + r.xp + ' XP');
     }
     if (r.avatar) {
       if (!state.unlockedAvatars) state.unlockedAvatars = ['default'];
-      if (!state.unlockedAvatars.includes(r.avatar)) state.unlockedAvatars.push(r.avatar);
+      if (!state.unlockedAvatars.includes(r.avatar)) {
+        state.unlockedAvatars.push(r.avatar);
+        const a = AVATAR_CATALOG[r.avatar];
+        gained.push('Avatar ' + (a ? a.emoji + ' ' + a.label : r.avatar));
+      }
     }
     if (r.font) {
       if (!state.unlockedFonts) state.unlockedFonts = ['default'];
-      if (!state.unlockedFonts.includes(r.font)) state.unlockedFonts.push(r.font);
+      if (!state.unlockedFonts.includes(r.font)) {
+        state.unlockedFonts.push(r.font);
+        gained.push('Police');
+      }
     }
     saveState();
+    if (gained.length) {
+      if (typeof flash === 'function') flash('Récompense : ' + gained.join(' · '));
+      if (typeof showAppToast === 'function') showAppToast('Récompense badge', gained.join(' · '));
+    }
+    try { if (typeof renderProfile === 'function') renderProfile(); } catch (e) {}
   }
 
   function applyCosmeticTheme() {
@@ -1501,7 +1525,7 @@
   }
   function levelFromXp(xp) {
     let level = 1;
-    while (xpForLevel(level + 1) <= xp && level < 99) level++;
+    while (xpForLevel(level + 1) <= xp && level < 120) level++;
     return level;
   }
   function awardXp(amount, reason) {
@@ -2537,20 +2561,35 @@
     const id = document.getElementById('adminBadgeSelect').value;
     if (id === SECRET_BADGE.id) {
       state.secretBadgeUnlocked = true;
-    } else if (Array.isArray(state.seenBadges) && !state.seenBadges.includes(id)) {
-      state.seenBadges.push(id);
+    } else {
+      if (!Array.isArray(state.seenBadges)) state.seenBadges = [];
+      if (!state.seenBadges.includes(id)) state.seenBadges.push(id);
+      if (state.badgeRewardsClaimed && state.badgeRewardsClaimed.includes(id)) {
+        state.badgeRewardsClaimed = state.badgeRewardsClaimed.filter(x => x !== id);
+      }
+      const badge = getBadges().find(b => b.id === id);
+      if (badge) grantBadgeReward(badge);
     }
     saveState();
     buildBadges();
-    flash('Badge débloqué (admin).');
+    try { if (typeof renderProfile === 'function') renderProfile(); } catch (e) {}
+    flash('Badge + récompense appliqués (admin).');
   });
 
   document.getElementById('adminGrantAllBtn').addEventListener('click', () => {
-    const allIds = getBadges().map(b => b.id);
+    const all = getBadges();
+    const allIds = all.map(b => b.id);
     state.seenBadges = Array.from(new Set([...(state.seenBadges || []), ...allIds]));
+    all.forEach(b => {
+      if (state.badgeRewardsClaimed && state.badgeRewardsClaimed.includes(b.id)) {
+        state.badgeRewardsClaimed = state.badgeRewardsClaimed.filter(x => x !== b.id);
+      }
+      grantBadgeReward(b);
+    });
     saveState();
     buildBadges();
-    flash('Tous les badges normaux débloqués (admin).');
+    try { if (typeof renderProfile === 'function') renderProfile(); } catch (e) {}
+    flash('Tous badges + récompenses (admin).');
   });
 
   document.getElementById('adminResetBadgesBtn').addEventListener('click', () => {
@@ -2917,6 +2956,123 @@
     if (type === 'err') el.classList.add('err');
   }
 
+  /* ---- Notifications (site ouvert) ---- */
+  const notifState = { friends: 0, challenges: 0, messages: 0 };
+  let convNotifUnsub = null;
+  let lastToastAt = 0;
+  const knownChallengeIds = new Set();
+  let challengesReady = false;
+
+  function showAppToast(title, body) {
+    const el = document.getElementById('appToast');
+    if (!el) return;
+    const now = Date.now();
+    if (now - lastToastAt < 1200) return; // anti-spam
+    lastToastAt = now;
+    el.innerHTML = `<strong>${escapeHtml(title)}</strong>${body ? `<span>${escapeHtml(body)}</span>` : ''}`;
+    el.classList.add('show');
+    clearTimeout(showAppToast._t);
+    showAppToast._t = setTimeout(() => el.classList.remove('show'), 4200);
+  }
+
+  function refreshNotifBadge() {
+    const total = (notifState.friends || 0) + (notifState.challenges || 0) + (notifState.messages || 0);
+    const badge = document.getElementById('socialBadge');
+    if (badge) {
+      if (total > 0) {
+        badge.textContent = total > 9 ? '9+' : String(total);
+        badge.classList.add('show');
+      } else {
+        badge.textContent = '0';
+        badge.classList.remove('show');
+      }
+    }
+    const dA = document.getElementById('tabDotAmis');
+    const dD = document.getElementById('tabDotDefis');
+    const dM = document.getElementById('tabDotMessages');
+    if (dA) dA.classList.toggle('on', (notifState.friends || 0) > 0);
+    if (dD) dD.classList.toggle('on', (notifState.challenges || 0) > 0);
+    if (dM) dM.classList.toggle('on', (notifState.messages || 0) > 0);
+  }
+
+  function getChatReadMap() {
+    try { return JSON.parse(localStorage.getItem('note_chat_read_v1') || '{}') || {}; } catch (e) { return {}; }
+  }
+  function setChatRead(chatId, ts) {
+    const map = getChatReadMap();
+    map[chatId] = ts || Date.now();
+    try { localStorage.setItem('note_chat_read_v1', JSON.stringify(map)); } catch (e) {}
+  }
+
+  function updateChallengeNotifsFromCache() {
+    if (!currentUser) {
+      notifState.challenges = 0;
+      refreshNotifBadge();
+      return;
+    }
+    let n = 0;
+    Object.values(cachedChallenges || {}).forEach(ch => {
+      if (!ch) return;
+      const uid = currentUser.uid;
+      const isPart = ch.fromUid === uid || ch.toUid === uid ||
+        (Array.isArray(ch.participants) && ch.participants.includes(uid));
+      if (!isPart) return;
+      // demande à accepter
+      if (ch.status === 'pending' && ch.toUid === uid) n++;
+      // actif et mon score manquant
+      if (ch.status === 'active' && (ch.type === 'score_day' || ch.type === 'exercise' || ch.type === 'goal')) {
+        if (isMultiChallenge(ch)) {
+          const sc = ch.scores && ch.scores[uid];
+          if (typeof sc !== 'number') n++;
+        } else {
+          const mine = ch.fromUid === uid ? ch.fromScore : ch.toScore;
+          if (typeof mine !== 'number') n++;
+        }
+      }
+      if (ch.status === 'active' && ch.type === 'chrono') n++;
+    });
+    notifState.challenges = n;
+    refreshNotifBadge();
+  }
+
+  function startConversationNotifs() {
+    if (!currentUser || !db) return;
+    if (convNotifUnsub) { convNotifUnsub(); convNotifUnsub = null; }
+    convNotifUnsub = db.collection('conversations')
+      .where('participants', 'array-contains', currentUser.uid)
+      .onSnapshot(snap => {
+        const readMap = getChatReadMap();
+        let unread = 0;
+        snap.docChanges().forEach(change => {
+          const d = change.doc.data() || {};
+          const id = change.doc.id;
+          if (d.lastFrom && d.lastFrom !== currentUser.uid) {
+            const updated = d.updatedAt && d.updatedAt.toMillis ? d.updatedAt.toMillis() : 0;
+            const lastRead = readMap[id] || 0;
+            if (updated > lastRead) {
+              if (change.type === 'modified' || change.type === 'added') {
+                // toast seulement sur modif récente
+                if (change.type === 'modified') {
+                  showAppToast('Nouveau message', (d.lastMessage || 'Message reçu').slice(0, 80));
+                }
+              }
+            }
+          }
+        });
+        snap.forEach(doc => {
+          const d = doc.data() || {};
+          if (d.lastFrom && d.lastFrom !== currentUser.uid) {
+            const updated = d.updatedAt && d.updatedAt.toMillis ? d.updatedAt.toMillis() : 0;
+            const lastRead = readMap[doc.id] || 0;
+            if (updated > lastRead) unread++;
+          }
+        });
+        notifState.messages = unread;
+        refreshNotifBadge();
+      }, err => console.warn('conv notif', err));
+  }
+
+
   function openSocialPanel() {
     document.getElementById('socialPanel').classList.add('open');
     document.getElementById('socialScrim').classList.add('open');
@@ -2965,6 +3121,9 @@
   });
 
   function stopSocialListeners() {
+    if (convNotifUnsub) { convNotifUnsub(); convNotifUnsub = null; }
+    notifState.friends = 0; notifState.challenges = 0; notifState.messages = 0;
+    refreshNotifBadge();
     if (friendsUnsub) { friendsUnsub(); friendsUnsub = null; }
     if (requestsUnsub) { requestsUnsub(); requestsUnsub = null; }
     if (outgoingUnsub) { outgoingUnsub(); outgoingUnsub = null; }
@@ -3068,6 +3227,7 @@
 
     // Affiche tout de suite (évite la liste vide alors que des amis existent)
     refreshFriendsOnce();
+    startConversationNotifs();
 
     friendsUnsub = db.collection('users').doc(uid).collection('friends')
       .onSnapshot(snap => {
@@ -3084,11 +3244,12 @@
     requestsUnsub = db.collection('users').doc(uid).collection('incomingRequests')
       .onSnapshot(snap => {
         const list = document.getElementById('friendRequestsList');
-        const badge = document.getElementById('socialBadge');
-        if (badge) {
-          badge.textContent = String(snap.size);
-          badge.classList.toggle('show', snap.size > 0);
+        const prev = notifState.friends || 0;
+        notifState.friends = snap.size;
+        if (snap.size > prev) {
+          showAppToast('Demande d\'ami', 'Tu as une nouvelle demande');
         }
+        refreshNotifBadge();
         if (!list) return;
         if (snap.empty) {
           list.innerHTML = '<div class="social-empty">Aucune demande</div>';
@@ -3634,9 +3795,23 @@
     const merge = (snap) => {
       snap.forEach(doc => { cachedChallenges[doc.id] = { id: doc.id, ...doc.data() }; });
       snap.docChanges().forEach(change => {
-        if (change.type === 'removed') delete cachedChallenges[change.doc.id];
+        if (change.type === 'removed') {
+          delete cachedChallenges[change.doc.id];
+          knownChallengeIds.delete(change.doc.id);
+          return;
+        }
+        const ch = { id: change.doc.id, ...change.doc.data() };
+        const uid = currentUser && currentUser.uid;
+        if (challengesReady && (change.type === 'added' || change.type === 'modified') && uid) {
+          if (ch.status === 'pending' && ch.toUid === uid && !knownChallengeIds.has(ch.id)) {
+            showAppToast('Nouveau défi', (ch.fromPseudo ? '@' + ch.fromPseudo : 'Un ami') + ' t\'a défié');
+          }
+        }
+        knownChallengeIds.add(change.doc.id);
       });
+      challengesReady = true;
       renderChallengesList();
+      updateChallengeNotifsFromCache();
     };
     challengesUnsubFrom = db.collection('challenges').where('fromUid', '==', currentUser.uid)
       .onSnapshot(merge, err => console.error(err));
@@ -4023,6 +4198,13 @@
     document.getElementById('chatInput').value = '';
     const menu = document.getElementById('chatPlusMenu');
     if (menu) menu.style.display = 'none';
+    setChatRead(chatId, Date.now());
+    // baisse le compteur messages
+    if (notifState.messages > 0) {
+      // recalcul via listener; force local dip
+      notifState.messages = Math.max(0, (notifState.messages || 1) - 1);
+      refreshNotifBadge();
+    }
     listenMessages(chatId);
   }
 

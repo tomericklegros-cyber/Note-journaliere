@@ -96,10 +96,59 @@
       Chaque série gagne des points et fait grimper un tube coloré qui indique votre rang, de Débutant jusqu'à Hacker.
       Battez vos records, débloquez des badges, et gardez une trace de votre progression jour après jour.
     </p>
-    <button type="button" class="add-btn" id="introSkipBtn">Passer →</button>
-    <button type="button" class="ghost-btn" id="introSkipBtn2" style="max-width:260px;margin-top:-6px;">Continuer sans lire</button>
+    <button type="button" class="add-btn" id="introSkipBtn" onclick="var s=document.getElementById('introSplash');if(s){s.style.display='none';}try{localStorage.setItem('note_journaliere_intro_seen','1');}catch(e){}">Passer →</button>
+    <button type="button" class="ghost-btn" id="introSkipBtn2" style="max-width:260px;margin-top:-6px;" onclick="var s=document.getElementById('introSplash');if(s){s.style.display='none';}try{localStorage.setItem('note_journaliere_intro_seen','1');}catch(e){}">Continuer sans lire</button>
   </div>
 </div>
+
+<script>
+// Secours autonome : marche même si app.js plante
+(function () {
+  function hideIntro() {
+    var splash = document.getElementById('introSplash');
+    if (!splash) return;
+    splash.classList.add('hide');
+    try { localStorage.setItem('note_journaliere_intro_seen', '1'); } catch (e) {}
+    setTimeout(function () {
+      splash.style.display = 'none';
+      // ouvre onboarding si présent
+      var onb = document.getElementById('onboardingOverlay');
+      if (onb) {
+        var done = false;
+        try {
+          done = localStorage.getItem('note_journaliere_onboarding_done') === '1';
+        } catch (e) {}
+        if (!done) onb.classList.add('open');
+      }
+    }, 200);
+  }
+  function bind(id) {
+    var btn = document.getElementById(id);
+    if (!btn) return;
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      hideIntro();
+    }, true);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
+      bind('introSkipBtn');
+      bind('introSkipBtn2');
+    });
+  } else {
+    bind('introSkipBtn');
+    bind('introSkipBtn2');
+  }
+  // déjà vue ?
+  try {
+    if (localStorage.getItem('note_journaliere_intro_seen') === '1') {
+      var s = document.getElementById('introSplash');
+      if (s) s.style.display = 'none';
+    }
+  } catch (e) {}
+})();
+</script>
 
 <!-- ONBOARDING (3 questions) -->
 <div class="modal-overlay" id="onboardingOverlay">
@@ -149,6 +198,7 @@
 <div class="nav-scrim" id="navScrim"></div>
 
 <!-- SOCIAL (haut droite) -->
+<div id="appToast" class="app-toast" aria-live="polite"></div>
 <button type="button" class="social-toggle" id="socialToggle" title="Amis, défis, messages">
   <span class="social-ico">👥</span>
   <span>Social</span>
@@ -161,9 +211,9 @@
     <button type="button" class="social-close" id="socialClose" title="Fermer">×</button>
   </div>
   <div class="social-tabs">
-    <button type="button" class="social-tab active" data-social="amis">Amis</button>
-    <button type="button" class="social-tab" data-social="defis">Défis</button>
-    <button type="button" class="social-tab" data-social="messages">Messages</button>
+    <button type="button" class="social-tab active" data-social="amis">Amis <span class="tab-dot" id="tabDotAmis"></span></button>
+    <button type="button" class="social-tab" data-social="defis">Défis <span class="tab-dot" id="tabDotDefis"></span></button>
+    <button type="button" class="social-tab" data-social="messages">Messages <span class="tab-dot" id="tabDotMessages"></span></button>
   </div>
   <div class="social-body">
     <div class="social-flash" id="socialFlash"></div>

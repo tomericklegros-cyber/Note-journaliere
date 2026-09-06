@@ -2790,3 +2790,67 @@ body:not(.light-theme) .side-nav {
 .home-badges-grid.compact {
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
 }
+
+/* ---- Toasts + pastilles notifications ---- */
+.app-toast {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-120%);
+  z-index: 10000;
+  min-width: 220px;
+  max-width: min(92vw, 360px);
+  background: var(--card);
+  border: 1px solid var(--purple);
+  border-radius: 14px;
+  padding: 12px 16px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.28);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.35s ease, opacity 0.35s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.app-toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+.app-toast strong {
+  font-size: 13px;
+  color: var(--ink);
+}
+.app-toast span {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.social-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #EF4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--stone);
+}
+.social-badge.show { display: inline-flex; }
+.social-toggle { position: relative; }
+.tab-dot {
+  display: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #EF4444;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.tab-dot.on { display: inline-block; }
