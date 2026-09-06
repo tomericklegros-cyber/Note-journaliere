@@ -2727,3 +2727,48 @@ body:not(.light-theme) .side-nav {
   .desktop-only-radar { display: none !important; }
   .mobile-only-radar { display: block !important; margin-top: 14px !important; }
 }
+
+/* ---- Cosmétiques profil + badges paliers ---- */
+.medal-tier {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--purple);
+  margin-top: 2px;
+}
+.cosmetic-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.cosmetic-chip {
+  min-width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--stone-dark);
+  cursor: pointer;
+  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  color: var(--ink);
+}
+.cosmetic-chip.font {
+  font-size: 12px;
+  font-weight: 700;
+  height: auto;
+  min-height: 36px;
+}
+.cosmetic-chip.selected {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 1px var(--purple);
+  background: rgba(var(--accent-rgb), 0.14);
+}
+.profile-avatar {
+  font-size: 28px !important;
+}
+.home-badges-grid.compact {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}

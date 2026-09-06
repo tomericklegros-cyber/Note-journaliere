@@ -230,6 +230,11 @@
           onboarding: cloud.onboarding && typeof cloud.onboarding === 'object' ? cloud.onboarding : null,
           chatNicknames: cloud.chatNicknames && typeof cloud.chatNicknames === 'object' ? cloud.chatNicknames : {},
           challengeStats: cloud.challengeStats && typeof cloud.challengeStats === 'object' ? cloud.challengeStats : { wins: 0, multiWins: 0, played: 0 },
+          unlockedAvatars: Array.isArray(cloud.unlockedAvatars) ? cloud.unlockedAvatars : ['default'],
+          unlockedFonts: Array.isArray(cloud.unlockedFonts) ? cloud.unlockedFonts : ['default'],
+          selectedAvatar: typeof cloud.selectedAvatar === 'string' ? cloud.selectedAvatar : 'default',
+          selectedFont: typeof cloud.selectedFont === 'string' ? cloud.selectedFont : 'default',
+          badgeRewardsClaimed: Array.isArray(cloud.badgeRewardsClaimed) ? cloud.badgeRewardsClaimed : [],
           seenBadges: Array.isArray(cloud.seenBadges) ? cloud.seenBadges : [],
           secretBadgeUnlocked: typeof cloud.secretBadgeUnlocked === 'boolean' ? cloud.secretBadgeUnlocked : false,
           hackerCelebratedToday: typeof cloud.hackerCelebratedToday === 'boolean' ? cloud.hackerCelebratedToday : false,
@@ -440,7 +445,12 @@
       onboardingDone: false,
       onboarding: null,
       chatNicknames: {},
-      challengeStats: { wins: 0, multiWins: 0, played: 0 }
+      challengeStats: { wins: 0, multiWins: 0, played: 0 },
+      unlockedAvatars: ['default'],
+      unlockedFonts: ['default'],
+      selectedAvatar: 'default',
+      selectedFont: 'default',
+      badgeRewardsClaimed: []
     };
   }
 
@@ -495,6 +505,11 @@
         onboarding: parsed.onboarding && typeof parsed.onboarding === 'object' ? parsed.onboarding : null,
         chatNicknames: parsed.chatNicknames && typeof parsed.chatNicknames === 'object' ? parsed.chatNicknames : {},
         challengeStats: parsed.challengeStats && typeof parsed.challengeStats === 'object' ? parsed.challengeStats : { wins: 0, multiWins: 0, played: 0 },
+        unlockedAvatars: Array.isArray(parsed.unlockedAvatars) ? parsed.unlockedAvatars : ['default'],
+        unlockedFonts: Array.isArray(parsed.unlockedFonts) ? parsed.unlockedFonts : ['default'],
+        selectedAvatar: typeof parsed.selectedAvatar === 'string' ? parsed.selectedAvatar : 'default',
+        selectedFont: typeof parsed.selectedFont === 'string' ? parsed.selectedFont : 'default',
+        badgeRewardsClaimed: Array.isArray(parsed.badgeRewardsClaimed) ? parsed.badgeRewardsClaimed : [],
         seenBadges: Array.isArray(parsed.seenBadges) ? parsed.seenBadges : null,
         secretBadgeUnlocked: typeof parsed.secretBadgeUnlocked === 'boolean' ? parsed.secretBadgeUnlocked : null,
         hackerCelebratedToday: typeof parsed.hackerCelebratedToday === 'boolean' ? parsed.hackerCelebratedToday : false,
@@ -765,33 +780,96 @@
     const bestScoreEver = Math.max(todayScore, state.records.bestScore ? state.records.bestScore.score : 0);
     const reachedPerfExtreme = bestScoreEver >= perfExtremeMin;
     const reachedHacker = bestScoreEver >= hackerMin;
-
     const stats = state.challengeStats || { wins: 0, multiWins: 0, played: 0 };
+    const wins = stats.wins || 0;
+    const played = stats.played || 0;
+    const multi = stats.multiWins || 0;
+
     return [
-      { id: 'premier-jour',   icon: '🥉', img: 'badges/premier-jour.png',   label: 'Premier jour',                liveDone: daysCount >= 1,     current: daysCount, target: 1,     unit: 'jour' },
-      { id: 'une-semaine',    icon: '📅', img: 'badges/une-semaine.png',    label: 'Une semaine d\'affilée',       liveDone: streak >= 7,        current: streak, target: 7,     unit: 'jours' },
-      { id: 'un-mois',        icon: '🗓️', img: 'badges/un-mois.png',        label: 'Un mois d\'affilée',           liveDone: streak >= 30,       current: streak, target: 30,    unit: 'jours' },
-      { id: 'premier-record', icon: '🏆', img: 'badges/premier-record.png', label: 'Premier record battu',        liveDone: !!state.records.bestScore, current: null, target: null, unit: '' },
-      { id: 'perf-extreme',   icon: '👑', img: 'badges/perf-extreme.png',   label: 'Performance extrême atteint', liveDone: reachedPerfExtreme, current: bestScoreEver, target: perfExtremeMin, unit: 'pts' },
-      { id: 'hacker',         icon: '🖥️', img: 'badges/hacker.png',         label: 'Rang Hacker atteint',         liveDone: reachedHacker,      current: bestScoreEver, target: hackerMin, unit: 'pts' },
-      { id: 'mille-pts',      icon: '🔥', img: 'badges/mille-pts.png',      label: '1 000 pts cumulés',           liveDone: allTime >= 1000,    current: allTime, target: 1000,  unit: 'pts' },
-      { id: 'cinq-mille-pts', icon: '⭐', img: 'badges/cinq-mille-pts.png', label: '5 000 pts cumulés',           liveDone: allTime >= 5000,    current: allTime, target: 5000,  unit: 'pts' },
-      { id: 'dix-mille-pts',  icon: '🏔️', img: 'badges/dix-mille-pts.png',  label: '10 000 pts cumulés',          liveDone: allTime >= 10000,   current: allTime, target: 10000, unit: 'pts' },
-      { id: 'premier-sang',   icon: '⚔️', img: 'badges/premier-sang.png',   label: 'Premier sang — 1 défi gagné', liveDone: (stats.wins || 0) >= 1, current: stats.wins || 0, target: 1, unit: 'victoire' },
-      { id: 'duelliste',      icon: '🗡️', img: 'badges/duelliste.png',      label: 'Duelliste — 5 défis joués',    liveDone: (stats.played || 0) >= 5, current: stats.played || 0, target: 5, unit: 'défis' },
-      { id: 'meute',          icon: '👥', img: 'badges/meute.png',          label: 'Esprit de meute — défi multi gagné', liveDone: (stats.multiWins || 0) >= 1, current: stats.multiWins || 0, target: 1, unit: 'multi' },
+      { id: 'premier-jour',   icon: '🥉', img: 'badges/premier-jour.png',   label: 'Premier jour',                liveDone: daysCount >= 1,     current: daysCount, target: 1,     unit: 'jour', reward: { xp: 20, avatar: 'seedling' } },
+      { id: 'une-semaine',    icon: '📅', img: 'badges/une-semaine.png',    label: 'Une semaine d\'affilée',       liveDone: streak >= 7,        current: streak, target: 7,     unit: 'jours', reward: { xp: 40, font: 'mono' } },
+      { id: 'un-mois',        icon: '🗓️', img: 'badges/un-mois.png',        label: 'Un mois d\'affilée',           liveDone: streak >= 30,       current: streak, target: 30,    unit: 'jours', reward: { xp: 100, avatar: 'calendar' } },
+      { id: 'premier-record', icon: '🏆', img: 'badges/premier-record.png', label: 'Premier record battu',        liveDone: !!state.records.bestScore, current: null, target: null, unit: '', reward: { xp: 30, avatar: 'trophy' } },
+      { id: 'perf-extreme',   icon: '👑', img: 'badges/perf-extreme.png',   label: 'Performance extrême atteint', liveDone: reachedPerfExtreme, current: bestScoreEver, target: perfExtremeMin, unit: 'pts', reward: { xp: 80, avatar: 'crown' } },
+      { id: 'hacker',         icon: '🖥️', img: 'badges/hacker.png',         label: 'Rang Hacker atteint',         liveDone: reachedHacker,      current: bestScoreEver, target: hackerMin, unit: 'pts', reward: { xp: 120, font: 'neon', avatar: 'hacker' } },
+      { id: 'mille-pts',      icon: '🔥', img: 'badges/mille-pts.png',      label: '1 000 pts cumulés',           liveDone: allTime >= 1000,    current: allTime, target: 1000,  unit: 'pts', reward: { xp: 25 } },
+      { id: 'cinq-mille-pts', icon: '⭐', img: 'badges/cinq-mille-pts.png', label: '5 000 pts cumulés',           liveDone: allTime >= 5000,    current: allTime, target: 5000,  unit: 'pts', reward: { xp: 60, avatar: 'star' } },
+      { id: 'dix-mille-pts',  icon: '🏔️', img: 'badges/dix-mille-pts.png',  label: '10 000 pts cumulés',          liveDone: allTime >= 10000,   current: allTime, target: 10000, unit: 'pts', reward: { xp: 150, font: 'display' } },
+      // Badges défis évolutifs (plusieurs paliers)
+      { id: 'premier-sang',   icon: '⚔️', img: null, label: 'Premier sang I',  liveDone: wins >= 1,  current: wins, target: 1,  unit: 'victoire', tier: 1, family: 'sang', reward: { xp: 30, avatar: 'sword' } },
+      { id: 'premier-sang-2', icon: '⚔️', img: null, label: 'Premier sang II', liveDone: wins >= 5,  current: wins, target: 5,  unit: 'victoires', tier: 2, family: 'sang', reward: { xp: 50, font: 'mono' } },
+      { id: 'premier-sang-3', icon: '⚔️', img: null, label: 'Premier sang III',liveDone: wins >= 15, current: wins, target: 15, unit: 'victoires', tier: 3, family: 'sang', reward: { xp: 100, avatar: 'sword-gold' } },
+      { id: 'duelliste',      icon: '🗡️', img: null, label: 'Duelliste I',     liveDone: played >= 5,  current: played, target: 5,  unit: 'défis', tier: 1, family: 'duel', reward: { xp: 25 } },
+      { id: 'duelliste-2',    icon: '🗡️', img: null, label: 'Duelliste II',    liveDone: played >= 15, current: played, target: 15, unit: 'défis', tier: 2, family: 'duel', reward: { xp: 50, avatar: 'duel' } },
+      { id: 'duelliste-3',    icon: '🗡️', img: null, label: 'Duelliste III',   liveDone: played >= 40, current: played, target: 40, unit: 'défis', tier: 3, family: 'duel', reward: { xp: 90, font: 'display' } },
+      { id: 'meute',          icon: '👥', img: null, label: 'Esprit de meute I',  liveDone: multi >= 1, current: multi, target: 1, unit: 'multi', tier: 1, family: 'meute', reward: { xp: 40, avatar: 'pack' } },
+      { id: 'meute-2',        icon: '👥', img: null, label: 'Esprit de meute II', liveDone: multi >= 3, current: multi, target: 3, unit: 'multi', tier: 2, family: 'meute', reward: { xp: 70, font: 'neon' } },
+      { id: 'meute-3',        icon: '👥', img: null, label: 'Esprit de meute III',liveDone: multi >= 10,current: multi, target: 10,unit: 'multi', tier: 3, family: 'meute', reward: { xp: 150, avatar: 'pack-gold' } },
     ];
   }
 
-  function medalIconHtml(b) {
-    return `<img src="${b.img}" alt="" onload="this.style.display='block';" onerror="this.style.display='none';">
-      <span class="medal-emoji">${b.icon}</span>`;
+  const AVATAR_CATALOG = {
+    default: { emoji: '🙂', label: 'Classique' },
+    seedling: { emoji: '🌱', label: 'Pousse' },
+    calendar: { emoji: '📆', label: 'Assidu' },
+    trophy: { emoji: '🏆', label: 'Trophée' },
+    crown: { emoji: '👑', label: 'Couronne' },
+    hacker: { emoji: '💻', label: 'Hacker' },
+    star: { emoji: '⭐', label: 'Étoile' },
+    sword: { emoji: '⚔️', label: 'Lame' },
+    'sword-gold': { emoji: '🗡️', label: 'Lame d\'or' },
+    duel: { emoji: '🥊', label: 'Duelliste' },
+    pack: { emoji: '🐺', label: 'Meute' },
+    'pack-gold': { emoji: '🦊', label: 'Meute d\'or' }
+  };
+
+  const FONT_CATALOG = {
+    default: { label: 'Standard', css: 'var(--font-body)' },
+    mono: { label: 'Mono tech', css: 'var(--font-mono)' },
+    neon: { label: 'Néon', css: '"Orbitron", var(--font-body)' },
+    display: { label: 'Affiche', css: '"Bebas Neue", "Arial Narrow", sans-serif' }
+  };
+
+  function grantBadgeReward(badge) {
+    if (!badge || !badge.reward) return;
+    if (!state.badgeRewardsClaimed) state.badgeRewardsClaimed = [];
+    if (state.badgeRewardsClaimed.includes(badge.id)) return;
+    state.badgeRewardsClaimed.push(badge.id);
+    const r = badge.reward;
+    if (r.xp) {
+      state.xp = (state.xp || 0) + r.xp;
+    }
+    if (r.avatar) {
+      if (!state.unlockedAvatars) state.unlockedAvatars = ['default'];
+      if (!state.unlockedAvatars.includes(r.avatar)) state.unlockedAvatars.push(r.avatar);
+    }
+    if (r.font) {
+      if (!state.unlockedFonts) state.unlockedFonts = ['default'];
+      if (!state.unlockedFonts.includes(r.font)) state.unlockedFonts.push(r.font);
+    }
+    saveState();
+  }
+
+  function applyCosmeticTheme() {
+    const font = FONT_CATALOG[state.selectedFont] || FONT_CATALOG.default;
+    document.documentElement.style.setProperty('--user-font', font.css);
+    document.body.style.fontFamily = 'var(--user-font), var(--font-body)';
+  }
+
+  function medalIconHtml  function medalIconHtml(b) {
+    if (b.img) {
+      return `<img src="${b.img}" alt="" onload="this.style.display='block';" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
+      <span class="medal-emoji" style="display:none;">${b.icon}</span>`;
+    }
+    return `<span class="medal-emoji" style="display:block;font-size:28px;">${b.icon}</span>`;
   }
 
   function badgeProgressText(b) {
-    if (b.done || b.target === null) return '';
+    const tierStars = b.tier ? `<div class="medal-tier">${'★'.repeat(b.tier)}${'☆'.repeat(Math.max(0, 3 - b.tier))}</div>` : '';
+    if (b.done) return tierStars;
+    if (b.target === null) return tierStars;
     const current = Math.min(Math.round(b.current), b.target);
-    return `<div class="medal-progress">${current} / ${b.target} ${b.unit}</div>`;
+    return `${tierStars}<div class="medal-progress">${current} / ${b.target} ${b.unit}</div>`;
   }
 
   function buildBadges() {
@@ -804,9 +882,14 @@
     } else {
       const newlyUnlocked = rawBadges.filter(b => b.liveDone && !state.seenBadges.includes(b.id));
       if (newlyUnlocked.length) {
-        newlyUnlocked.forEach((b, i) => setTimeout(() => showBadgeToast(b), i * 3200));
+        newlyUnlocked.forEach((b, i) => {
+          grantBadgeReward(b);
+          setTimeout(() => showBadgeToast(b), i * 3200);
+        });
         state.seenBadges = [...state.seenBadges, ...newlyUnlocked.map(b => b.id)];
         saveState();
+        if (typeof saveToCloud === 'function') saveToCloud();
+        if (typeof applyCosmeticTheme === 'function') applyCosmeticTheme();
       }
     }
 
@@ -831,7 +914,7 @@
     // Aperçu compact sur l'accueil (max 6)
     const homeWrap = document.getElementById('homeBadgesWrap');
     if (homeWrap) {
-      const preview = allBadges.slice(0, 6).map(b => `
+      const preview = allBadges.slice(0, 12).map(b => `
         <div class="medal home-medal">
           <div class="medal-circle ${b.done ? 'unlocked' : 'locked'} ${b.id === SECRET_BADGE.id ? 'secret-unlocked' : ''}">${medalIconHtml(b)}</div>
           <div class="medal-label ${b.done ? '' : 'locked'}">${b.label}</div>
@@ -1446,6 +1529,45 @@
     }
     awardXp(amount, reason);
   }
+
+  function renderCosmeticsPickers() {
+    const avBox = document.getElementById('profileAvatarPicker');
+    const fontBox = document.getElementById('profileFontPicker');
+    if (avBox) {
+      const unlocked = state.unlockedAvatars || ['default'];
+      avBox.innerHTML = unlocked.map(id => {
+        const a = AVATAR_CATALOG[id] || { emoji: '?', label: id };
+        const sel = state.selectedAvatar === id ? 'selected' : '';
+        return `<button type="button" class="cosmetic-chip ${sel}" data-avatar="${id}" title="${a.label}">${a.emoji}</button>`;
+      }).join('');
+      avBox.querySelectorAll('[data-avatar]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.selectedAvatar = btn.getAttribute('data-avatar');
+          saveState();
+          if (typeof saveToCloud === 'function') saveToCloud();
+          renderProfile();
+        });
+      });
+    }
+    if (fontBox) {
+      const unlocked = state.unlockedFonts || ['default'];
+      fontBox.innerHTML = unlocked.map(id => {
+        const f = FONT_CATALOG[id] || { label: id };
+        const sel = state.selectedFont === id ? 'selected' : '';
+        return `<button type="button" class="cosmetic-chip font ${sel}" data-font="${id}">${f.label}</button>`;
+      }).join('');
+      fontBox.querySelectorAll('[data-font]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.selectedFont = btn.getAttribute('data-font');
+          saveState();
+          applyCosmeticTheme();
+          if (typeof saveToCloud === 'function') saveToCloud();
+          renderCosmeticsPickers();
+        });
+      });
+    }
+  }
+
   async function renderProfile() {
     const pseudoEl = document.getElementById('profilePseudo');
     const emailEl = document.getElementById('profileEmail');
@@ -1455,7 +1577,12 @@
     const pseudo = state.pseudo || (currentUser && (currentUser.displayName || currentUser.email?.split('@')[0])) || 'Invité';
     pseudoEl.textContent = state.pseudo ? '@' + state.pseudo : pseudo;
     emailEl.textContent = currentUser?.email || (currentUser ? 'Connecté' : 'Données locales');
-    avatarEl.textContent = (state.pseudo || pseudo || '?').slice(0, 1).toUpperCase();
+    const av = (state.selectedAvatar && AVATAR_CATALOG[state.selectedAvatar])
+      ? AVATAR_CATALOG[state.selectedAvatar].emoji
+      : (state.pseudo || pseudo || '?').slice(0, 1).toUpperCase();
+    avatarEl.textContent = av;
+    applyCosmeticTheme();
+    renderCosmeticsPickers();
 
     const xp = state.xp || 0;
     const level = levelFromXp(xp);
