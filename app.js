@@ -856,7 +856,7 @@
     document.body.style.fontFamily = 'var(--user-font), var(--font-body)';
   }
 
-  function medalIconHtml  function medalIconHtml(b) {
+  function medalIconHtml(b) {
     if (b.img) {
       return `<img src="${b.img}" alt="" onload="this.style.display='block';" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
       <span class="medal-emoji" style="display:none;">${b.icon}</span>`;
