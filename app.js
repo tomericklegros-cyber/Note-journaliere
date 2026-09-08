@@ -28,7 +28,6 @@
   }
 
   let currentUser = null;
-  let syncing = false;
   let lastCloudSave = 0;
 
   function logEvent(name, params) {
@@ -202,27 +201,60 @@
     }
   }
 
-  async function saveToCloud() {
-    if (!currentUser || syncing || !db) return;
-    syncing = true;
+  let cloudDirty = false;
+  let cloudSaving = false;
+
+  async function writeCloudNow() {
+    if (!currentUser || !db) return false;
+    state.clientUpdatedAt = Date.now();
+    const clean = sanitizeStateForCloud(state);
+    const payload = {
+      ...clean,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      clientUpdatedAt: state.clientUpdatedAt
+    };
+    await db.collection('users').doc(currentUser.uid).set(payload, { merge: true });
+    await publishPublicProfile();
+    lastCloudSave = Date.now();
+    setAuthStatus('Synchronisé ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), 'synced');
+    return true;
+  }
+
+  function scheduleCloudSave() {
+    if (!currentUser || !db) return;
+    cloudDirty = true;
+    clearTimeout(window._cloudSaveTimer);
+    window._cloudSaveTimer = setTimeout(() => { flushCloudSave(); }, 1500);
+  }
+
+  async function flushCloudSave() {
+    if (!currentUser || !db) return;
+    if (!cloudDirty || cloudSaving) return;
+    cloudSaving = true;
+    cloudDirty = false;
     try {
-      state.clientUpdatedAt = Date.now();
-      const clean = sanitizeStateForCloud(state);
-      const payload = {
-        ...clean,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        clientUpdatedAt: state.clientUpdatedAt
-      };
-      await db.collection('users').doc(currentUser.uid).set(payload, { merge: true });
-      await publishPublicProfile();
-      lastCloudSave = Date.now();
-      setAuthStatus('Synchronisé ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), 'synced');
+      await writeCloudNow();
     } catch (err) {
       console.error('Cloud save error', err);
       setAuthStatus('Erreur de sync', 'error');
+      // re-marque dirty pour réessayer plus tard
+      cloudDirty = true;
     } finally {
-      syncing = false;
+      cloudSaving = false;
+      if (cloudDirty) {
+        clearTimeout(window._cloudSaveTimer);
+        window._cloudSaveTimer = setTimeout(() => { flushCloudSave(); }, 1500);
+      }
     }
+  }
+
+  /** Appel explicite (login, admin…) — envoie tout de suite */
+  async function saveToCloud() {
+    if (!currentUser || !db) return;
+    cloudDirty = true;
+    // si déjà en cours, la file reprendra après
+    if (cloudSaving) return;
+    await flushCloudSave();
   }
 
   function stateRichness(s) {
@@ -590,16 +622,15 @@
     }
   }
 
-  function saveState() {
+  function saveState(opts) {
+    // opts.cloud === false → local only (ex: refresh UI sans sync)
     try {
       state.clientUpdatedAt = Date.now();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (e) {}
-    // Sync to cloud (debounced a little)
-    if (currentUser) {
-      clearTimeout(window._cloudSaveTimer);
-      window._cloudSaveTimer = setTimeout(() => saveToCloud(), 800);
-    }
+    if (opts && opts.cloud === false) return;
+    // File d'attente cloud : ne droppe jamais une modif
+    if (currentUser) scheduleCloudSave();
   }
 
   function computeScore(s) {
@@ -1295,7 +1326,8 @@
         document.getElementById('section-calendar')?.style.display === 'block') {
       renderCalendar();
     }
-    saveState();
+    // Pas de sync cloud ici : render = affichage uniquement
+    // (le local + cloud sont gérés par les actions utilisateur via saveState)
     } catch (err) {
       console.error('render error', err);
       try { showSection('section-today'); } catch (e) {}
