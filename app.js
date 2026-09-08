@@ -2546,8 +2546,7 @@
     buildTimerExerciseSelect();
     buildChartTabs();
     initTips();
-    try { listenGlobalBroadcast(); } catch (e) { console.warn(e); }
-  showSection('section-today');
+    showSection('section-today');
     render();
   } catch (err) {
     console.error('boot error', err);
@@ -2736,6 +2735,7 @@
 
   function showGlobalBroadcast(data) {
     const banner = document.getElementById('globalBroadcastBanner');
+    if (banner) banner.style.display = 'none'; return;
     const body = document.getElementById('globalBroadcastBody');
     if (!banner || !body) return;
     if (!data || !data.message || !data.id) {
@@ -2783,6 +2783,19 @@
     if (banner) banner.style.display = 'none';
   });
 
+  const ADMIN_CHAT_ID = 'admin_broadcast';
+
+  async function ensureAdminChat() {
+    if (!db) return;
+    await db.collection('conversations').doc(ADMIN_CHAT_ID).set({
+      type: 'admin',
+      name: 'Annonces Admin',
+      participants: [],
+      isAdminChannel: true,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  }
+
   document.getElementById('adminBroadcastSendBtn')?.addEventListener('click', async () => {
     if (!isAdminUser() || !db || !currentUser) {
       flash('Réservé à l’admin connecté.');
@@ -2797,17 +2810,27 @@
     }
     if (status) status.textContent = 'Envoi…';
     try {
-      const id = 'b_' + Date.now();
-      await db.collection('appConfig').doc('broadcast').set({
-        active: true,
-        id,
-        message: msg.slice(0, 500),
-        authorUid: currentUser.uid,
-        authorEmail: (currentUser.email || '').toLowerCase(),
+      await ensureAdminChat();
+      const textMsg = msg.slice(0, 500);
+      await db.collection('conversations').doc(ADMIN_CHAT_ID).collection('messages').add({
+        from: currentUser.uid,
+        fromPseudo: 'Admin',
+        text: textMsg,
+        isAdmin: true,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      await db.collection('conversations').doc(ADMIN_CHAT_ID).set({
+        type: 'admin',
+        name: 'Annonces Admin',
+        isAdminChannel: true,
+        lastMessage: textMsg,
+        lastFrom: 'admin',
+        lastFromUid: currentUser.uid,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
-      if (status) status.textContent = 'Message envoyé à tout le monde.';
-      flash('Message admin publié.');
+      if (status) status.textContent = 'Message posté dans Messagerie → Annonces Admin.';
+      flash('Message admin dans la messagerie.');
+      if (ta) ta.value = '';
     } catch (e) {
       console.error(e);
       if (status) status.textContent = 'Erreur (règles Firestore ?).';
@@ -2819,16 +2842,15 @@
     if (!isAdminUser() || !db) return;
     const status = document.getElementById('adminBroadcastStatus');
     try {
-      await db.collection('appConfig').doc('broadcast').set({
-        active: false,
-        message: '',
+      await db.collection('conversations').doc(ADMIN_CHAT_ID).set({
+        lastMessage: '(aucun message récent)',
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
-      if (status) status.textContent = 'Message global retiré.';
-      flash('Message global retiré.');
+      if (status) status.textContent = 'Aperçu retiré (l’historique des messages reste).';
+      flash('Aperçu admin mis à jour.');
     } catch (e) {
       console.error(e);
-      if (status) status.textContent = 'Erreur suppression.';
+      if (status) status.textContent = 'Erreur.';
     }
   });
 
@@ -4481,9 +4503,21 @@
     if (chv) chv.style.display = 'none';
     const thread = document.getElementById('chatThreadView');
     thread.style.display = 'flex';
-    document.getElementById('chatThreadTitle').textContent = chatTitleFromMeta(meta);
+    const isAdminChat = chatId === ADMIN_CHAT_ID || (meta && meta.type === 'admin');
+    document.getElementById('chatThreadTitle').textContent = isAdminChat ? 'Annonces Admin' : chatTitleFromMeta(meta);
     const renameBtn = document.getElementById('chatRenameBtn');
-    if (renameBtn) renameBtn.style.display = 'inline-flex';
+    if (renameBtn) renameBtn.style.display = isAdminChat ? 'none' : 'inline-flex';
+    const plusBtn = document.getElementById('chatPlusBtn');
+    if (plusBtn) plusBtn.style.display = isAdminChat ? 'none' : '';
+    const input = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('chatSendBtn');
+    if (isAdminChat && !isAdminUser()) {
+      if (input) { input.disabled = true; input.placeholder = 'Seul l’admin peut écrire ici'; }
+      if (sendBtn) sendBtn.disabled = true;
+    } else {
+      if (input) { input.disabled = false; input.placeholder = 'Écrire un message…'; }
+      if (sendBtn) sendBtn.disabled = false;
+    }
     document.getElementById('chatMessages').innerHTML = '<div class="social-empty">Chargement…</div>';
     document.getElementById('chatInput').value = '';
     const menu = document.getElementById('chatPlusMenu');
@@ -4517,23 +4551,56 @@
       list.innerHTML = '<div class="social-empty">Connecte-toi pour discuter</div>';
       return;
     }
+    list.innerHTML = '';
+
+    // Conversation Admin (tout le monde)
+    let adminPreview = 'Annonces officielles';
+    let adminWhen = '';
+    try {
+      const adminSnap = await db.collection('conversations').doc(ADMIN_CHAT_ID).get();
+      if (adminSnap.exists) {
+        const ad = adminSnap.data() || {};
+        if (ad.lastMessage) adminPreview = ad.lastMessage;
+        if (ad.updatedAt && ad.updatedAt.toDate) adminWhen = formatChatDay(ad.updatedAt.toDate());
+      }
+    } catch (e) {}
+    const adminCard = document.createElement('div');
+    adminCard.className = 'friend-card chatable conv-card admin-conv';
+    adminCard.innerHTML = `
+      <div class="conv-avatar group">📢</div>
+      <div class="conv-body">
+        <div class="fname">Annonces Admin</div>
+        <div class="fmeta">${escapeHtml((adminPreview || '').slice(0, 48))}</div>
+      </div>
+      <div class="conv-date">${escapeHtml(adminWhen)}</div>`;
+    adminCard.addEventListener('click', () => {
+      openChatThread(ADMIN_CHAT_ID, {
+        type: 'admin',
+        name: 'Annonces Admin',
+        participants: [],
+        pseudos: {}
+      });
+    });
+    list.appendChild(adminCard);
+
     try {
       const snap = await db.collection('conversations')
         .where('participants', 'array-contains', currentUser.uid)
         .limit(40)
         .get();
       if (snap.empty) {
-        list.innerHTML = '<div class="social-empty">Aucune conversation pour l’instant</div>';
         return;
       }
       const rows = [];
-      snap.forEach(doc => rows.push({ id: doc.id, ...doc.data() }));
+      snap.forEach(doc => {
+        if (doc.id === ADMIN_CHAT_ID) return;
+        rows.push({ id: doc.id, ...doc.data() });
+      });
       rows.sort((a, b) => {
         const ta = a.updatedAt && a.updatedAt.toMillis ? a.updatedAt.toMillis() : 0;
         const tb = b.updatedAt && b.updatedAt.toMillis ? b.updatedAt.toMillis() : 0;
         return tb - ta;
       });
-      list.innerHTML = '';
       rows.forEach(c => {
         const isGroup = c.type === 'group';
         let title = c.name || 'Groupe';
@@ -4572,7 +4639,10 @@
       });
     } catch (e) {
       console.error(e);
-      list.innerHTML = '<div class="social-empty">Erreur conversations (index Firestore ?)</div>';
+      const err = document.createElement('div');
+      err.className = 'social-empty';
+      err.textContent = 'Erreur conversations (index Firestore ?)';
+      list.appendChild(err);
     }
   }
 
@@ -4669,6 +4739,10 @@
   }
 
   async function sendChatMessage() {
+    if (activeChatId === ADMIN_CHAT_ID && !isAdminUser()) {
+      socialFlash('Seul l’admin peut écrire dans Annonces Admin', 'err');
+      return;
+    }
     if (!currentUser || !activeChatId || !activeChatMeta) return;
     const input = document.getElementById('chatInput');
     const text = (input.value || '').trim();

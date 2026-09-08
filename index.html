@@ -25,7 +25,7 @@
 <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-analytics-compat.js"></script>
 </head>
 <body>
-<div id="globalBroadcastBanner" class="global-broadcast" style="display:none;" role="status">
+<div id="globalBroadcastBanner" class="global-broadcast" style="display:none !important;" role="status">
   <div class="global-broadcast-inner">
     <span class="global-broadcast-ico">📢</span>
     <div class="global-broadcast-text">
@@ -793,9 +793,9 @@
     <button type="button" class="ghost-btn" id="adminRemoteStatsBtn" style="width:100%;margin-bottom:12px;">Appliquer stats défis</button>
     <button type="button" class="ghost-btn" id="adminRemoteGrantAllBadgesBtn" style="width:100%;margin-bottom:12px;">Débloquer tous badges (joueur)</button>
 
-    <div class="modal-section-title">Message à tout le monde</div>
+    <div class="modal-section-title">Message dans la messagerie (Annonces Admin)</div>
     <textarea id="adminBroadcastMsg" rows="3" placeholder="Ex: Maintenance ce soir à 21h, ou nouveau défi du week-end…" style="width:100%;margin-bottom:8px;background:var(--stone-dark);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:10px 12px;font-family:var(--font-body);font-size:13px;resize:vertical;"></textarea>
-    <button type="button" class="save-btn" id="adminBroadcastSendBtn" style="width:100%;margin-bottom:8px;">📢 Envoyer à tous</button>
+    <button type="button" class="save-btn" id="adminBroadcastSendBtn" style="width:100%;margin-bottom:8px;">📢 Poster dans Messagerie</button>
     <button type="button" class="ghost-btn" id="adminBroadcastClearBtn" style="width:100%;margin-bottom:12px;">Retirer le message global</button>
     <div id="adminBroadcastStatus" style="font-size:12px;color:var(--ink-soft);margin-bottom:12px;min-height:16px;"></div>
 
