@@ -1,34 +1,16 @@
   const STORAGE_KEY = "note_journaliere_v1";
 
-  /* ========== FIREBASE ========== */
-  const firebaseConfig = {
-    apiKey: "AIzaSyDvnZZw8HW0LSuC2mlWecf6aVGiKzk6o6Y",
-    authDomain: "note-journaliere.firebaseapp.com",
-    projectId: "note-journaliere",
-    storageBucket: "note-journaliere.firebasestorage.app",
-    messagingSenderId: "412765917805",
-    appId: "1:412765917805:web:8dc8ba387195ed05026564",
-    measurementId: "G-QVPHXN13MS"
-  };
+  /* ========== APP CORE ==========
+     Structure :
+     - firebase-config.js → auth, db, analytics
+     - app.js             → state, UI, social, sync
+     Prochaine étape possible : app-social.js / app-state.js
+  ========== */
 
-  let auth = null;
-  let db = null;
-  let analytics = null;
-  try {
-    if (typeof firebase !== 'undefined') {
-      firebase.initializeApp(firebaseConfig);
-      auth = firebase.auth();
-      db = firebase.firestore();
-      try { analytics = firebase.analytics(); } catch (e) {}
-    } else {
-      console.warn('Firebase indisponible — mode local uniquement');
-    }
-  } catch (e) {
-    console.warn('Firebase init error', e);
-  }
-
+  // auth, db, analytics viennent de firebase-config.js
   let currentUser = null;
   let lastCloudSave = 0;
+  let lastPublicFingerprint = '';
 
   function logEvent(name, params) {
     try { if (analytics) analytics.logEvent(name, params || {}); } catch (e) {}
@@ -164,13 +146,26 @@
     openPseudoModal(true);
   }
 
-  async function publishPublicProfile() {
-    if (!currentUser) return;
+  async function publishPublicProfile(force) {
+    if (!currentUser || !db || !state) return;
     try {
-      const score = Math.round(computeScore(state));
-      const { current } = getRank(score);
+      const score = typeof computeScore === 'function' ? computeScore(state) : 0;
+      const rank = typeof getRank === 'function' ? getRank(score) : { current: { name: '', color: '' } };
+      const current = rank.current || { name: '', color: '' };
       const level = typeof levelFromXp === 'function' ? levelFromXp(state.xp || 0) : 1;
-      const badgeCount = countBadgesProgress();
+      const badgeCount = typeof countBadgesProgress === 'function' ? countBadgesProgress() : { unlocked: 0, total: 0 };
+      const fp = [
+        state.pseudo || '',
+        state.xp || 0,
+        level,
+        Math.round(score),
+        current.name || '',
+        state.selectedAvatar || '',
+        badgeCount.unlocked,
+        (state.challengeStats && state.challengeStats.wins) || 0
+      ].join('|');
+      if (!force && fp === lastPublicFingerprint) return;
+      lastPublicFingerprint = fp;
       await db.collection('publicProfiles').doc(currentUser.uid).set({
         uid: currentUser.uid,
         pseudo: state.pseudo || '',
@@ -180,6 +175,7 @@
         todayScore: score,
         rankName: current.name,
         rankColor: current.color,
+        selectedAvatar: state.selectedAvatar || 'default',
         badgesUnlocked: badgeCount.unlocked,
         badgesTotal: badgeCount.total,
         challengeWins: (state.challengeStats && state.challengeStats.wins) || 0,
@@ -204,17 +200,50 @@
   let cloudDirty = false;
   let cloudSaving = false;
 
+  function buildCloudPayload() {
+    // Liste blanche : on n'envoie que les champs utiles (pas tout l'objet state brut)
+    state.clientUpdatedAt = Date.now();
+    const raw = {
+      userName: state.userName,
+      pseudo: state.pseudo,
+      dayKey: state.dayKey,
+      exercises: state.exercises,
+      history: state.history,
+      records: state.records,
+      dailyGoal: state.dailyGoal,
+      dayNotes: state.dayNotes,
+      plannedSessions: state.plannedSessions,
+      plannedChallenges: state.plannedChallenges,
+      challengeDayResults: state.challengeDayResults,
+      xp: state.xp,
+      xpClaimedChallenges: state.xpClaimedChallenges,
+      onboardingDone: state.onboardingDone,
+      onboarding: state.onboarding,
+      chatNicknames: state.chatNicknames,
+      challengeStats: state.challengeStats,
+      unlockedAvatars: state.unlockedAvatars,
+      unlockedFonts: state.unlockedFonts,
+      selectedAvatar: state.selectedAvatar,
+      selectedFont: state.selectedFont,
+      badgeRewardsClaimed: state.badgeRewardsClaimed,
+      seenBadges: state.seenBadges,
+      secretBadgeUnlocked: state.secretBadgeUnlocked,
+      hackerCelebratedToday: state.hackerCelebratedToday,
+      difficultyBonus: state.difficultyBonus,
+      clientUpdatedAt: state.clientUpdatedAt,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    return sanitizeStateForCloud(raw);
+  }
+
   async function writeCloudNow() {
     if (!currentUser || !db) return false;
-    state.clientUpdatedAt = Date.now();
-    const clean = sanitizeStateForCloud(state);
-    const payload = {
-      ...clean,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      clientUpdatedAt: state.clientUpdatedAt
-    };
+    const payload = buildCloudPayload();
+    // remettre serverTimestamp après sanitize (JSON l'enlève)
+    payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    payload.clientUpdatedAt = state.clientUpdatedAt;
     await db.collection('users').doc(currentUser.uid).set(payload, { merge: true });
-    await publishPublicProfile();
+    await publishPublicProfile(false);
     lastCloudSave = Date.now();
     setAuthStatus('Synchronisé ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), 'synced');
     return true;
@@ -3151,27 +3180,9 @@
     const uid = currentUser.uid;
     Object.values(cachedChallenges || {}).forEach(ch => {
       if (!ch) return;
-      // Uniquement les vraies actions en attente pour MOI
-      // 1) Défi reçu en attente d'acceptation
-      if (ch.status === 'pending' && ch.toUid === uid) {
-        n++;
-        return;
-      }
-      // 2) Défi actif où je dois encore envoyer mon score (pas le chrono)
-      if (ch.status === 'active' && (ch.type === 'score_day' || ch.type === 'exercise' || ch.type === 'goal')) {
-        const isPart = ch.fromUid === uid || ch.toUid === uid ||
-          (Array.isArray(ch.participants) && ch.participants.includes(uid));
-        if (!isPart) return;
-        if (typeof isMultiChallenge === 'function' && isMultiChallenge(ch)) {
-          const sc = ch.scores && ch.scores[uid];
-          if (typeof sc !== 'number') n++;
-        } else {
-          const mine = ch.fromUid === uid ? ch.fromScore : ch.toScore;
-          if (typeof mine !== 'number') n++;
-        }
-      }
-      // chrono : pastille seulement si l'autre a joué / défi reçu et chrono pas fini — évite le spam
-      // (on ne compte plus tous les chronos actifs)
+      // Pastille UNIQUEMENT pour un défi reçu en attente d'acceptation
+      // (les défis actifs se voient dans l'onglet, sans spam rouge)
+      if (ch.status === 'pending' && ch.toUid === uid) n++;
     });
     notifState.challenges = n;
     refreshNotifBadge();
@@ -3181,56 +3192,38 @@
     if (!currentUser || !db) return;
     if (convNotifUnsub) { convNotifUnsub(); convNotifUnsub = null; }
     let convBootstrapped = false;
+    const sessionStart = Date.now();
     convNotifUnsub = db.collection('conversations')
       .where('participants', 'array-contains', currentUser.uid)
       .onSnapshot(snap => {
         const readMap = getChatReadMap();
-        // Premier chargement : on marque les conversations existantes comme déjà vues
-        // pour éviter une pastille rouge "pour rien" au démarrage
+
+        // Premier chargement : TOUT est considéré comme déjà vu
+        // → plus de pastille rouge au simple ouverture du site
         if (!convBootstrapped) {
-          let changed = false;
           snap.forEach(doc => {
             const d = doc.data() || {};
             const updated = d.updatedAt && d.updatedAt.toMillis ? d.updatedAt.toMillis() : Date.now();
-            if (!readMap[doc.id] || readMap[doc.id] < updated) {
-              // seulement si c'est moi le lastFrom, ou pas de message utile
-              if (!d.lastFrom || d.lastFrom === currentUser.uid || !(d.lastMessage || '').trim()) {
-                readMap[doc.id] = updated;
-                changed = true;
-              } else if (!readMap[doc.id]) {
-                // ancien message non lu réel : on laisse, mais pas de toast au boot
-                // ne compte que s'il y a vraiment un lastMessage
-              }
-            }
+            readMap[doc.id] = Math.max(readMap[doc.id] || 0, updated, sessionStart);
           });
-          // Pour les vieux messages non lus trop anciens (> 7 jours), on les ignore
-          const week = Date.now() - 7 * 24 * 3600 * 1000;
-          snap.forEach(doc => {
-            const d = doc.data() || {};
-            const updated = d.updatedAt && d.updatedAt.toMillis ? d.updatedAt.toMillis() : 0;
-            if (updated && updated < week) {
-              readMap[doc.id] = Math.max(readMap[doc.id] || 0, updated);
-              changed = true;
-            }
-          });
-          if (changed) {
-            try { localStorage.setItem('note_chat_read_v1', JSON.stringify(readMap)); } catch (e) {}
-          }
+          try { localStorage.setItem('note_chat_read_v1', JSON.stringify(readMap)); } catch (e) {}
           convBootstrapped = true;
+          notifState.messages = 0;
+          refreshNotifBadge();
+          return;
         }
 
         let unread = 0;
         snap.docChanges().forEach(change => {
-          if (!convBootstrapped && change.type === 'added') return;
           const d = change.doc.data() || {};
           const id = change.doc.id;
           if (change.type === 'modified' && d.lastFrom && d.lastFrom !== currentUser.uid) {
             const updated = d.updatedAt && d.updatedAt.toMillis ? d.updatedAt.toMillis() : 0;
             const lastRead = readMap[id] || 0;
             const msg = (d.lastMessage || '').trim();
-            if (msg && updated > lastRead) {
-              // toast seulement si le message est récent (< 3 min)
-              if (updated > Date.now() - 3 * 60 * 1000) {
+            // uniquement messages vraiment nouveaux pendant cette session
+            if (msg && updated > lastRead && updated >= sessionStart) {
+              if (updated > Date.now() - 5 * 60 * 1000) {
                 showAppToast('Nouveau message', msg.slice(0, 80));
               }
             }
@@ -3243,9 +3236,7 @@
           if (d.lastFrom && d.lastFrom !== currentUser.uid) {
             const updated = d.updatedAt && d.updatedAt.toMillis ? d.updatedAt.toMillis() : 0;
             const lastRead = readMap[doc.id] || 0;
-            // ignore très vieux
-            if (updated && updated < Date.now() - 7 * 24 * 3600 * 1000) return;
-            if (updated > lastRead) unread++;
+            if (updated > lastRead && updated >= sessionStart) unread++;
           }
         });
         notifState.messages = unread;
@@ -3259,6 +3250,9 @@
     document.getElementById('socialScrim').classList.add('open');
     refreshSocialLoginGate();
     if (currentUser) loadSocialData();
+    // Ouvrir Social = on considère les notifs messages comme vues (sauf demandes d'amis / défis pending)
+    notifState.messages = 0;
+    refreshNotifBadge();
   }
   function closeSocialPanel() {
     document.getElementById('socialPanel').classList.remove('open');
