@@ -2546,7 +2546,8 @@
     buildTimerExerciseSelect();
     buildChartTabs();
     initTips();
-    showSection('section-today');
+    try { listenGlobalBroadcast(); } catch (e) { console.warn(e); }
+  showSection('section-today');
     render();
   } catch (err) {
     console.error('boot error', err);
@@ -2719,6 +2720,118 @@
   document.getElementById('adminPanelOverlay').addEventListener('click', (e) => {
     if (e.target.id === 'adminPanelOverlay') document.getElementById('adminPanelOverlay').classList.remove('open');
   });
+
+
+  /* ---- Message admin global (broadcast) ---- */
+  const BROADCAST_DISMISS_KEY = 'note_broadcast_dismissed_id';
+  let broadcastUnsub = null;
+  let currentBroadcastId = null;
+
+  function getDismissedBroadcastId() {
+    try { return localStorage.getItem(BROADCAST_DISMISS_KEY) || ''; } catch (e) { return ''; }
+  }
+  function setDismissedBroadcastId(id) {
+    try { localStorage.setItem(BROADCAST_DISMISS_KEY, id || ''); } catch (e) {}
+  }
+
+  function showGlobalBroadcast(data) {
+    const banner = document.getElementById('globalBroadcastBanner');
+    const body = document.getElementById('globalBroadcastBody');
+    if (!banner || !body) return;
+    if (!data || !data.message || !data.id) {
+      banner.style.display = 'none';
+      return;
+    }
+    if (getDismissedBroadcastId() === data.id) {
+      banner.style.display = 'none';
+      return;
+    }
+    currentBroadcastId = data.id;
+    body.textContent = data.message;
+    banner.style.display = 'block';
+  }
+
+  function listenGlobalBroadcast() {
+    if (!db) return;
+    if (broadcastUnsub) { try { broadcastUnsub(); } catch (e) {} broadcastUnsub = null; }
+    broadcastUnsub = db.collection('appConfig').doc('broadcast').onSnapshot(snap => {
+      if (!snap.exists) {
+        showGlobalBroadcast(null);
+        return;
+      }
+      const d = snap.data() || {};
+      if (!d.active || !(d.message || '').trim()) {
+        showGlobalBroadcast(null);
+        return;
+      }
+      const payload = {
+        id: d.id || snap.id + '_' + (d.updatedAt && d.updatedAt.toMillis ? d.updatedAt.toMillis() : Date.now()),
+        message: String(d.message || '').trim()
+      };
+      // toast si nouveau message pendant la session
+      if (listenGlobalBroadcast._lastId && listenGlobalBroadcast._lastId !== payload.id) {
+        if (typeof showAppToast === 'function') showAppToast('Message admin', payload.message.slice(0, 100));
+      }
+      listenGlobalBroadcast._lastId = payload.id;
+      showGlobalBroadcast(payload);
+    }, err => console.warn('broadcast listen', err));
+  }
+
+  document.getElementById('globalBroadcastClose')?.addEventListener('click', () => {
+    if (currentBroadcastId) setDismissedBroadcastId(currentBroadcastId);
+    const banner = document.getElementById('globalBroadcastBanner');
+    if (banner) banner.style.display = 'none';
+  });
+
+  document.getElementById('adminBroadcastSendBtn')?.addEventListener('click', async () => {
+    if (!isAdminUser() || !db || !currentUser) {
+      flash('Réservé à l’admin connecté.');
+      return;
+    }
+    const ta = document.getElementById('adminBroadcastMsg');
+    const status = document.getElementById('adminBroadcastStatus');
+    const msg = (ta && ta.value || '').trim();
+    if (msg.length < 2) {
+      if (status) status.textContent = 'Écris un message un peu plus long.';
+      return;
+    }
+    if (status) status.textContent = 'Envoi…';
+    try {
+      const id = 'b_' + Date.now();
+      await db.collection('appConfig').doc('broadcast').set({
+        active: true,
+        id,
+        message: msg.slice(0, 500),
+        authorUid: currentUser.uid,
+        authorEmail: (currentUser.email || '').toLowerCase(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      if (status) status.textContent = 'Message envoyé à tout le monde.';
+      flash('Message admin publié.');
+    } catch (e) {
+      console.error(e);
+      if (status) status.textContent = 'Erreur (règles Firestore ?).';
+      flash('Impossible d’envoyer le message admin.');
+    }
+  });
+
+  document.getElementById('adminBroadcastClearBtn')?.addEventListener('click', async () => {
+    if (!isAdminUser() || !db) return;
+    const status = document.getElementById('adminBroadcastStatus');
+    try {
+      await db.collection('appConfig').doc('broadcast').set({
+        active: false,
+        message: '',
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      if (status) status.textContent = 'Message global retiré.';
+      flash('Message global retiré.');
+    } catch (e) {
+      console.error(e);
+      if (status) status.textContent = 'Erreur suppression.';
+    }
+  });
+
 
   // Masque le bouton admin par défaut
   updateAdminButtonVisibility();
