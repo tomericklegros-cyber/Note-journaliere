@@ -151,15 +151,17 @@
     if (user) {
       logEvent('login', { method: user.providerData?.[0]?.providerId || 'unknown' });
       const loaded = await loadFromCloud(user);
-      if (loaded) {
-        // Rebuild UI after loading cloud data
+      if (typeof ensureExercises === 'function') ensureExercises();
+      try {
         buildTubeBands();
         buildForm();
         buildTimerExerciseSelect();
         buildChartTabs();
         buildLegend();
+        if (typeof initTips === 'function') initTips();
         render();
-      }
+        updateAdminButtonVisibility();
+      } catch (e) { console.warn('post-cloud ui', e); }
       await ensurePseudo();
       refreshSocialLoginGate();
       loadSocialData();
@@ -421,7 +423,8 @@
     const form = document.getElementById('exerciseForm');
     if (!form) return;
     form.innerHTML = '';
-    if (!state || !Array.isArray(state.exercises)) return;
+    if (typeof ensureExercises === 'function') ensureExercises();
+    if (!state || !Array.isArray(state.exercises) || !state.exercises.length) return;
     state.exercises.forEach(ex => {
       const field = document.createElement('div');
       field.className = 'exo-card field';
@@ -462,9 +465,11 @@
 
   function buildTimerExerciseSelect() {
     const select = document.getElementById('timerExercise');
+    if (!select) return;
+    if (typeof ensureExercises === 'function') ensureExercises();
     const selectedId = select.value;
     select.innerHTML = '';
-    const timeExercises = state.exercises.filter(ex => isTimeUnit(ex.unit));
+    const timeExercises = (state.exercises || []).filter(ex => isTimeUnit(ex.unit));
     const ordered = [...timeExercises].sort((a, b) => (a.id === 'gainage' ? -1 : b.id === 'gainage' ? 1 : 0));
 
     if (ordered.length === 0) {
@@ -2184,14 +2189,16 @@
   });
 
   try {
-    buildTubeBands();
-    buildLegend();
-    buildForm();
-    buildTimerExerciseSelect();
-    buildChartTabs();
-    initTips();
-    showSection('section-today');
-    render();
+    if (typeof ensureExercises === 'function') ensureExercises();
+    try { buildTubeBands(); } catch (e) { console.warn('boot tube', e); }
+    try { buildLegend(); } catch (e) { console.warn('boot legend', e); }
+    try { buildForm(); } catch (e) { console.warn('boot form', e); }
+    try { buildTimerExerciseSelect(); } catch (e) { console.warn('boot timer', e); }
+    try { buildChartTabs(); } catch (e) { console.warn('boot chart', e); }
+    try { initTips(); } catch (e) { console.warn('boot tips', e); }
+    try { showSection('section-today'); } catch (e) {}
+    try { updateAdminButtonVisibility(); } catch (e) {}
+    try { render(); } catch (e) { console.warn('boot render', e); }
   } catch (err) {
     console.error('boot error', err);
     try { showSection('section-today'); } catch (e) {}
@@ -2323,9 +2330,14 @@
   }
 
   function updateAdminButtonVisibility() {
+    const show = isAdminUser();
     const btn = document.getElementById('adminBtn');
-    if (!btn) return;
-    btn.style.display = isAdminUser() ? 'block' : 'none';
+    if (btn) {
+      btn.style.display = show ? 'block' : 'none';
+      btn.style.opacity = show ? '1' : '0.5';
+    }
+    const nav = document.getElementById('adminNavBtn');
+    if (nav) nav.style.display = show ? 'flex' : 'none';
   }
 
   function buildAdminBadgeSelect() {
@@ -2344,6 +2356,9 @@
     document.getElementById('adminPanelOverlay').classList.add('open');
   }
 
+  document.getElementById('adminNavBtn')?.addEventListener('click', () => {
+    document.getElementById('adminBtn')?.click();
+  });
   document.getElementById('adminBtn').addEventListener('click', () => {
     if (!currentUser) {
       alert('Connecte-toi avec le compte admin.');

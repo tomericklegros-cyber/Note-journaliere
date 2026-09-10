@@ -10,6 +10,7 @@ var lastCloudSave = 0;
 var lastPublicFingerprint = "";
 var cloudDirty = false;
 var cloudSaving = false;
+var currentUser = null;
 
   async function publishPublicProfile(force) {
     if (!currentUser || !db || !state) return;
@@ -224,6 +225,7 @@ var cloudSaving = false;
           if (localScore > cloudScore) {
             state = buildStateFromCloud(localBackup, cloud); window.state = state;
           }
+          ensureExercises();
           finalizeDayIfNeeded();
           try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
           await saveToCloud();
@@ -233,9 +235,7 @@ var cloudSaving = false;
         }
 
         state = buildStateFromCloud(cloud, localBackup); window.state = state;
-        if (!state.exercises.some(ex => ex.id === 'gainage')) {
-          state.exercises = [...state.exercises, { id: "gainage", name: "Gainage", points: 5, unit: "minute", decimal: true, value: 0 }];
-        }
+        ensureExercises();
         finalizeDayIfNeeded();
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
         setAuthStatus('Données cloud chargées', 'synced');
@@ -253,6 +253,17 @@ var cloudSaving = false;
       setAuthStatus('Erreur de chargement cloud — données locales conservées', 'error');
       return false;
     }
+  }
+
+
+  function defaultExercises() {
+    return [
+      { id: "pompes",    name: "Pompes",    points: 2, unit: "répétition", decimal: false, value: 0 },
+      { id: "tractions", name: "Tractions", points: 4, unit: "répétition", decimal: false, value: 0 },
+      { id: "abdos",     name: "Abdos",     points: 1, unit: "répétition", decimal: false, value: 0 },
+      { id: "course",    name: "Course",    points: 8, unit: "km",         decimal: true,  value: 0 },
+      { id: "gainage",   name: "Gainage",   points: 5, unit: "minute",     decimal: true,  value: 0 },
+    ];
   }
 
   function defaultState() {
@@ -304,6 +315,19 @@ var cloudSaving = false;
       .replace(/'/g, '&#39;');
   }
 
+
+
+  function ensureExercises() {
+    if (!state || !Array.isArray(state.exercises) || state.exercises.length === 0) {
+      if (!state) return;
+      state.exercises = defaultExercises();
+    }
+    // garantir les 5 de base
+    const ids = new Set(state.exercises.map(e => e.id));
+    defaultExercises().forEach(def => {
+      if (!ids.has(def.id)) state.exercises.push({ ...def });
+    });
+  }
 
   function loadState() {
     try {
@@ -362,5 +386,12 @@ var cloudSaving = false;
     if (currentUser) scheduleCloudSave();
   }
 
-var state = loadState();
+var state;
+try {
+  state = loadState();
+} catch (e) {
+  console.error('loadState failed', e);
+  state = defaultState();
+}
+try { ensureExercises(); } catch (e) { console.warn(e); }
 window.state = state;
